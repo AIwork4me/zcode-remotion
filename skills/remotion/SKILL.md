@@ -44,6 +44,19 @@ npx -y skills add remotion-dev/skills -s '*' -y --copy
   from https://github.com/remotion-dev/skills into `.zcode/skills/` — user-side
   fetch from the official repo, never vendored by this plugin.
 
+**Verify (mandatory, after the installer OR the manual fallback):** confirm on
+disk that the file actually exists — `.zcode/skills/remotion-best-practices/SKILL.md`
+(project scope) or `~/.agents/skills/remotion-best-practices/SKILL.md` (user
+scope) — before proceeding. Do not rely on the installer's exit code or console
+output alone; check the filesystem.
+
+> **Never report that skills/components were installed without verifying the files
+> exist on disk.** If the installer produced nothing, say so and use the manual
+> download fallback (fetch the 12 skill folders from
+> https://github.com/remotion-dev/skills into the scope directory); if that also
+> fails, report failure honestly and continue using your own knowledge while
+> telling the user the official skills are missing.
+
 After bootstrap, the official skills appear as `remotion-*` skills/commands in a
 NEW session. Within the current session, read the installed SKILL.md files
 directly when you need their guidance.
@@ -95,7 +108,7 @@ https://www.remotion.dev/docs/ai/skills.
 |---|---|---|
 | `npx skills add` fails | Node missing/old, network | Check `node -v`; retry; offline fallback in §1 |
 | Chrome/Chromium download failure | Network or proxy blocks storage.googleapis.com | Retry; see https://www.remotion.dev/docs/chrome-headless-shell; /remotion-doctor |
-| `Composition "<id>" not found` | Root not registering composition | Check `registerRoot` and `<Composition id=...>` match the CLI arg |
+| `Error: Could not find composition with ID <id>. Available compositions: ...` | Root not registering composition | Check `registerRoot` and `<Composition id=...>` match the CLI arg |
 | `delayRender() ... timed out` | Unresolved handle | Ensure every `delayRender` has `continueRender`; avoid unawaited promises in `calculateMetadata` |
 | `Module not found` | Deps not installed | Run detected package manager install; verify lockfile |
 | License banner in render output | Company-size entity | Free tier covers individuals/≤3-employee companies; else https://www.remotion.pro — inform user, don't work around |
