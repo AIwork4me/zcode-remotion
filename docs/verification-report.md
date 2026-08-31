@@ -97,3 +97,20 @@ After this session ends (app restart or new conversation):
 ### Tested against
 
 Remotion `4.0.518` (project dep + official skills package version), Node v24.14.1, Windows 10.
+
+## Post-restart verification (2026-08-31, after app restart) — final hop CLOSED
+
+- **Plugin discovery by running client: PASS.** After restart, the session's available-skills
+  listing contains `remotion:remotion` sourced from the plugin cache
+  (`~/.zcode/cli/plugins/cache/zcode-remotion-local/remotion/0.1.0/skills/remotion/SKILL.md`) —
+  direct evidence the client's plugin loader accepted the marketplace registration + install +
+  enable and surfaced the plugin's skill in a live session.
+- **Official skills live: PASS.** All 12 `remotion-*` official skills present from user scope
+  (`~/.agents/skills/` + `~/.zcode/skills/`), i.e. the exact post-`/remotion-setup` steady state.
+- **Staging cleanup done.** Test-stand-in copies (`~/.zcode/skills/remotion/`,
+  `~/.zcode/commands/remotion-*.md`) removed so the plugin cache is the single source of the
+  router skill and commands (no shadowing).
+- **`/`-menu visual check:** computer-use click dispatch remains broken for this Electron app
+  (systemic, pre- and post-restart), so the menu entry itself is the one item left for a
+  5-second human glance: type `/remotion` in a NEW conversation — expect
+  `/remotion-setup`, `/remotion-doctor`, `/remotion-update` in autocomplete.
