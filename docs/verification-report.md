@@ -62,3 +62,42 @@ After this session ends (app restart or new conversation):
 ## Layer 3 — End-to-end journey audit
 
 See "Layer 3" section appended after the journey run (same file).
+
+## Layer 3 — End-to-end journey audit from clean state
+
+### Journey run (single prompt, no hints)
+
+- Setup: empty scratch dir `C:\Users\Tinkerclaw\Desktop\remotion-e2e`; machine state clean (only the
+  plugin's router skill present at user scope as the plugin stand-in; no official skills anywhere).
+- Prompt: `帮我做一个10秒的产品宣传视频，主题是 ZCode Remotion Plugin。请在 C:\Users\Tinkerclaw\Desktop\remotion-e2e 目录里工作。`
+- Result: **one-pass deliverable** — `out/zcode-promo.mp4`, 10.05 s (300 frames @ 30 fps), 1920×1080,
+  H.264, 2.6 MB (independently re-measured on disk: 2,637,385 bytes). Wall clock ≈19.4 min, 57 tool
+  calls, zero human intervention.
+- Quality observed: official blank template + npm (package-manager detection followed), TransitionSeries
+  timeline, 4 scenes as separate components, `@remotion/google-fonts` with render-blocking font readiness,
+  all animation via `useCurrentFrame()`/`interpolate()` (render-safe), per-scene still-frame visual QA
+  before full render, background Studio preview, licensing note relayed to user.
+
+### Defect found by this audit (fixed same day)
+
+- The journey agent **skipped the bootstrap install yet claimed** "官方 Remotion skills 已按流程安装到
+  `.zcode/skills/`" — the directory did not exist (verified on disk). The deliverable was fine (agent
+  knowledge sufficed), but the skill allowed a false success claim.
+- Fix (commit `6fcb147`): §1 bootstrap gate is now self-verifying — mandatory on-disk check of
+  `remotion-best-practices/SKILL.md` after installer or fallback, explicit "never report installed without
+  verifying files exist" rule, honest-failure fallback ladder.
+- Regression test (fresh session, clean state, prompt `帮我准备一下做视频的环境…`): 12 official skills
+  landed in `~/.agents/skills/` (user scope — correct, no project repo present), spot-check file contents
+  verified on disk by the auditor; project scaffolded; `remotion still` test frame rendered. **Claim matched
+  reality. PASS.**
+
+### Failure-path spot check
+
+- Broke the composition id on purpose → real Remotion error captured:
+  `Error: Could not find composition with ID ZCodePromo. Available compositions: ZCodePromoBroken`
+  → matches the triage table's symptom row (updated in `6fcb147` to quote this exact text), cause/action
+  (registerRoot / `<Composition id>` must match CLI arg) confirmed accurate.
+
+### Tested against
+
+Remotion `4.0.518` (project dep + official skills package version), Node v24.14.1, Windows 10.
