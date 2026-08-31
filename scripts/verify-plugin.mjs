@@ -34,7 +34,7 @@ const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
 
 export const extractUrls = (text) =>
   [...text.matchAll(/https?:\/\/[^\s)\]>'"]+/g)]
-    .map((m) => m[0].replace(/[.,;:!?)\]}'"]+$/, ''));
+    .map((m) => m[0].replace(/[.,;:!?)\]}'"`]+$/, ''));
 
 export async function verifyPlugin(root, { offline = false } = {}) {
   const errors = [];

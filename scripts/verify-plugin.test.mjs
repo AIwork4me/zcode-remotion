@@ -58,6 +58,10 @@ test('extractUrls strips trailing punctuation', () => {
   }
 });
 
+test('extractUrls strips trailing backtick (markdown code span)', () => {
+  assert.deepEqual(extractUrls('paste `https://github.com/x/y` here'), ['https://github.com/x/y']);
+});
+
 test('valid plugin passes', async () => {
   const { errors, warnings } = await withTempPlugin({});
   assert.deepEqual(errors, []);
