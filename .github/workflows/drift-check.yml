@@ -1,0 +1,36 @@
+name: drift-check
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions: { issues: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Compare upstream skills version
+        run: |
+          set -e
+          UPSTREAM=$(curl -fsSL https://raw.githubusercontent.com/remotion-dev/skills/main/package.json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).version||'unknown'))" 2>/dev/null || echo unknown)
+          RECORDED=$(grep -o 'Remotion Skills `[0-9.]*`' README.md | grep -o '[0-9.]*' || echo none)
+          echo "upstream=$UPSTREAM recorded=$RECORDED"
+          if [ "$UPSTREAM" != "$RECORDED" ] && [ "$UPSTREAM" != "unknown" ]; then
+            echo "DRIFT_DETECTED=$UPSTREAM" >> "$GITHUB_ENV"
+          fi
+      - name: Open drift issue
+        if: env.DRIFT_DETECTED
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const v = process.env.DRIFT_DETECTED;
+            const title = `Drift: upstream Remotion skills ${v} not covered`;
+            const existing = await github.rest.issues.listForRepo({...context.repo, state: 'open'});
+            if (existing.data.some(i => i.title === title)) return;
+            await github.rest.issues.create({
+              ...context.repo,
+              title,
+              body: 'Upstream remotion-dev/skills is at ' + v + '. Review the routing table and environment guidance in skills/remotion/SKILL.md, bump "Tested against" in README.md, then rerun the journey audit (docs/verification-report.md).'
+            });
