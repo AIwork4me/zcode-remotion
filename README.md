@@ -8,6 +8,16 @@ official installer, then adds a ZCode-native integration layer: environment
 pre-flight, bilingual (EN/中文) auto-triggering, a still-frame-before-render
 verification loop, and failure triage.
 
+## Demo
+
+![Demo preview — code becomes picture, one sentence becomes a film](docs/assets/preview.gif)
+
+Watch the full 23s demo: [docs/assets/demo.mp4](docs/assets/demo.mp4) · project source: [demo/](demo/)
+
+Yes — this demo was made **by the plugin itself**: one prompt, no manual edits.
+The video shows its own birth: a single prompt travels through code → timeline →
+render → finished film (「一句话，一部片」).
+
 ## Install
 
 1. ZCode → Settings → Plugin Management → add this repo as a plugin marketplace.

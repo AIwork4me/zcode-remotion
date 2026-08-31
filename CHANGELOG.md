@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Demo video (23s, 1080p) + animated README preview — made end-to-end by the
+  plugin itself via the still-frame-gated workflow. Source in `demo/`,
+  assets in `docs/assets/`.
+
 ## 0.1.0 — 2026-08-31
 
 - Initial release.
