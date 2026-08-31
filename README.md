@@ -19,7 +19,7 @@ verification loop, and failure triage.
 | Piece | What it does |
 |---|---|
 | `remotion` skill | Auto-triggers on video requests; bootstraps official skills, pre-flights the environment, routes to the right official skill |
-| `/remotion-setup` | Installs the 12 official skills (project or user scope) + verifies discovery |
+| `/remotion-setup` | Installs the 12 official skills (user scope by default; `--project` to pin to one repo) + verifies discovery |
 | `/remotion-doctor` | Environment health check: Node, package manager, Chrome Headless Shell, versions |
 | `/remotion-update` | Refreshes official skills + upgrades Remotion deps |
 

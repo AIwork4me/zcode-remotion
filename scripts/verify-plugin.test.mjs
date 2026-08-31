@@ -110,3 +110,13 @@ test('declared-but-missing component dir is flagged', async () => {
   rmSync(root, { recursive: true, force: true });
   assert.ok(errors.some((e) => e.includes('commands')));
 });
+
+test('string-form skills/commands declarations are accepted', async () => {
+  const { errors } = await withTempPlugin({
+    pluginJson: {
+      name: 'remotion', version: '0.1.0', description: 'd',
+      skills: 'skills', commands: 'commands',
+    },
+  });
+  assert.deepEqual(errors, []);
+});

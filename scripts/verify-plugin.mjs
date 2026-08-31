@@ -2,7 +2,7 @@
 // Static verifier for the ZCode remotion plugin. CI gate + local dev tool.
 // Pure functions are exported for unit tests; CLI mode runs the full check.
 
-import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -46,8 +46,9 @@ export async function verifyPlugin(root, { offline = false } = {}) {
     if (manifest[key]) errors.push(`plugin.json: ${key} is forbidden by spec (zero-config plugin)`);
   }
 
-  // 2. declared component dirs exist
-  const declaredDirs = [...(manifest.skills ?? []), ...(manifest.commands ?? [])]
+  // 2. declared component dirs exist (manifests may use string or array form)
+  const asList = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
+  const declaredDirs = [...asList(manifest.skills), ...asList(manifest.commands)]
     .filter((p) => typeof p === 'string' && !p.endsWith('.md'));
   for (const d of declaredDirs) {
     if (!existsSync(join(root, d))) errors.push(`declared component directory missing: ${d}`);

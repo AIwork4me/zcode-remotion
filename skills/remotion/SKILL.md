@@ -30,11 +30,13 @@ Check whether official skills are installed:
 If NEITHER exists, bootstrap now (never silently skip, never proceed without):
 
 ```bash
-npx -y skills add remotion-dev/skills -s '*' -y --copy
+npx -y skills add remotion-dev/skills -s '*' -y --copy -g
 ```
 
-- Default is project scope (installs into `.zcode/skills/` and mirrors). Add `-g`
-  for user scope (`~/.agents/skills/`) when the user wants it across all projects.
+- Default is user scope (`-g`: installs into `~/.agents/skills/` and mirrors to
+  `~/.zcode/skills/`, so the skills work across all projects). Drop `-g` for
+  project scope (same command without `-g`, installs into `.zcode/skills/`
+  etc.) only when the user explicitly wants the skills pinned to one repo.
 - `--copy` is required on Windows (default symlink needs elevated privileges).
 - A cosmetic warning "PromptScript does not support global skill installation"
   is expected with `-g` and harmless.

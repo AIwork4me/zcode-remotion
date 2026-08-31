@@ -1,7 +1,10 @@
 # Contributing
 
-- `node --test scripts/` and `node scripts/verify-plugin.mjs` must pass locally
-  before every commit; CI enforces both.
+- Run `node --test scripts/verify-plugin.test.mjs` and
+  `node scripts/verify-plugin.mjs --offline` locally before every commit; CI
+  enforces both. The online `node scripts/verify-plugin.mjs` run is the
+  post-push/CI gate — it fails pre-push on the repo's own unpublished GitHub
+  URL, which is expected.
 - Never vendor content from `remotion-dev/skills` or the Remotion repo into this
   plugin — Remotion License forbids redistribution. Reference upstream by URL or
   via the official installer instead.

@@ -7,3 +7,5 @@
   still-frame render loop, failure triage.
 - Commands: `/remotion-setup`, `/remotion-doctor`, `/remotion-update`.
 - Verifier (`scripts/verify-plugin.mjs`) + CI (verify, link check, weekly drift check).
+- Skills bootstrap defaults to user scope (`-g`, spec §4.2); project scope is
+  the opt-in (`/remotion-setup --project`).

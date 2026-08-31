@@ -5,11 +5,11 @@ ZCode client: desktop app (single-instance), session running this verification.
 
 ## Layer 1 — Static verification: PASS
 
-- `node --test scripts/verify-plugin.test.mjs` → 11/11 pass.
+- `node --test scripts/verify-plugin.test.mjs` → 12/12 pass.
 - `node scripts/verify-plugin.mjs --offline` → all checks passed.
-- `node scripts/verify-plugin.mjs` (online) → pass; every shipped URL resolves 200
-  except the plugin's own GitHub repo URL (repo unpublished until release — resolves at push;
-  GitHub CI runs post-push only).
+- `node scripts/verify-plugin.mjs` (online) → online verify currently fails on
+  exactly one URL — the plugin's own unpublished GitHub repo (exit 1); passes
+  post-push. Every other shipped URL resolves.
 
 ## Layer 2 — Real-client verification: PASS with one environment-blocked hop
 
@@ -58,10 +58,6 @@ After this session ends (app restart or new conversation):
 2. `/` menu in a NEW conversation lists `/remotion-setup`, `/remotion-doctor`, `/remotion-update`.
 3. `/remotion-doctor` runs and prints the 7-check table.
 4. Saying "帮我做一个10秒的产品宣传视频" auto-triggers the `remotion` skill (chat shows skill load event).
-
-## Layer 3 — End-to-end journey audit
-
-See "Layer 3" section appended after the journey run (same file).
 
 ## Layer 3 — End-to-end journey audit from clean state
 

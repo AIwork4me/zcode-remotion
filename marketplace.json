@@ -4,10 +4,18 @@
     {
       "name": "remotion",
       "source": "./",
-      "description": "Remotion video creation for ZCode: official Agent Skills bootstrap + full create/preview/render workflow. 用官方安装器引导 Remotion 官方技能，覆盖建项目、预览、渲染全流程。",
+      "description": "Remotion video creation for ZCode: official Agent Skills bootstrap + full create/preview/render workflow.",
+      "description_i18n": {
+        "en": "Remotion video creation for ZCode: official Agent Skills bootstrap + full create/preview/render workflow.",
+        "zh-CN": "ZCode 的 Remotion 视频创作插件：用官方安装器引导 Remotion 官方 Agent Skills，覆盖建项目、预览、渲染全流程。"
+      },
       "version": "0.1.0",
+      "author": {
+        "name": "ZCode Remotion Plugin Contributors",
+        "url": "https://github.com/Tinkerclaw/zcode-remotion"
+      },
       "category": "productivity",
-      "tags": ["remotion", "video", "animation", "render"]
+      "keywords": ["remotion", "video", "animation", "render"]
     }
   ]
 }

@@ -1,12 +1,12 @@
 {
   "name": "remotion",
   "version": "0.1.0",
-  "description": "Create, preview and render videos with Remotion in ZCode. Bootstraps the 12 official Remotion Agent Skills via the official installer, then guides the full workflow: scaffold project, write React video components, Studio preview, still-frame check, MP4 render.",
+  "description": "Create, preview and render videos with Remotion in ZCode. Bootstraps the 12 official Remotion Agent Skills via the official installer, then guides the full workflow: scaffold project, write React video components, Studio preview, still-frame check, MP4 render. 用官方安装器引导 Remotion 官方技能，覆盖建项目、预览、渲染全流程。",
   "author": "ZCode Remotion Plugin Contributors",
   "homepage": "https://github.com/Tinkerclaw/zcode-remotion",
   "repository": "https://github.com/Tinkerclaw/zcode-remotion",
   "license": "MIT",
   "keywords": ["remotion", "video", "animation", "render", "mp4", "react"],
-  "skills": ["skills/remotion"],
+  "skills": "skills",
   "commands": ["commands"]
 }
