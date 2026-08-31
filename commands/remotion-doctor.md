@@ -13,10 +13,10 @@ attempt fixes before reporting.
    `~/.agents/skills/remotion-best-practices/`. Fail fix: /remotion-setup.
 5. If inside a Remotion project (package.json with `remotion` dependency):
    `npm ls remotion --depth=0` (or matching pm) and report the version; compare
-   with latest at https://www.remotion.dev/docs/upgrade. Fail fix: /remotion-update.
+   with latest at https://www.remotion.dev/docs/upgrading. Fail fix: /remotion-update.
 6. Chrome Headless Shell: run `npx remotion browser ensure` in the project (if
    no project, skip with a note). Fail fix: check network/proxy, see
-   https://www.remotion.dev/docs/chrome-headers.
+   https://www.remotion.dev/docs/chrome-headless-shell.
 7. License awareness: print a one-line note that Remotion is free for
    individuals and companies ≤3 employees, otherwise a company license is
    required (https://www.remotion.pro). No technical check — informational.

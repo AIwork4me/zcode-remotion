@@ -21,7 +21,7 @@ B. Upgrade project deps, ONLY if package.json contains `remotion`:
 
    Then follow the official `remotion-upgrade` skill guidance for related
    packages (`@remotion/*`, `@remotion/media-utils`, Mediabunny compat) and check
-   the changelog at https://www.remotion.dev/docs/upgrade for breaking changes.
+   the changelog at https://www.remotion.dev/docs/upgrading for breaking changes.
 
 Report: skills refreshed (Y/N + count), deps upgraded (from → to versions), any
 breaking-change callouts the user must review.

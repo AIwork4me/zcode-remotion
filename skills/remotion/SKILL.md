@@ -94,7 +94,7 @@ https://www.remotion.dev/docs/ai/skills.
 | Symptom | Likely cause | Action |
 |---|---|---|
 | `npx skills add` fails | Node missing/old, network | Check `node -v`; retry; offline fallback in §1 |
-| Chrome/Chromium download failure | Network or proxy blocks storage.googleapis.com | Retry; see https://www.remotion.dev/docs/chrome-headers; /remotion-doctor |
+| Chrome/Chromium download failure | Network or proxy blocks storage.googleapis.com | Retry; see https://www.remotion.dev/docs/chrome-headless-shell; /remotion-doctor |
 | `Composition "<id>" not found` | Root not registering composition | Check `registerRoot` and `<Composition id=...>` match the CLI arg |
 | `delayRender() ... timed out` | Unresolved handle | Ensure every `delayRender` has `continueRender`; avoid unawaited promises in `calculateMetadata` |
 | `Module not found` | Deps not installed | Run detected package manager install; verify lockfile |

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseFrontmatter, verifyPlugin } from './verify-plugin.mjs';
+import { parseFrontmatter, verifyPlugin, extractUrls } from './verify-plugin.mjs';
 
 const makePlugin = (root, overrides = {}) => {
   const {
@@ -41,6 +41,14 @@ test('parseFrontmatter extracts yaml-ish fields', () => {
 
 test('parseFrontmatter throws without closing delimiter', () => {
   assert.throws(() => parseFrontmatter('---\nname: x\n'));
+});
+
+test('extractUrls strips trailing punctuation', () => {
+  const urls = extractUrls('see https://example.com/docs. and (https://x.dev/a))');
+  assert.deepEqual(urls, ['https://example.com/docs', 'https://x.dev/a']);
+  for (const u of urls) {
+    assert.ok(!u.endsWith('.') && !u.endsWith(')'));
+  }
 });
 
 test('valid plugin passes', async () => {
