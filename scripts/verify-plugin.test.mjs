@@ -39,6 +39,13 @@ test('parseFrontmatter extracts yaml-ish fields', () => {
   assert.ok(body.includes('body'));
 });
 
+test('parseFrontmatter parses CRLF files (Windows autocrlf checkout)', () => {
+  const { data } = parseFrontmatter('---\r\nname: remotion\r\nlicense: MIT\r\nmetadata:\r\n---\r\nbody');
+  assert.equal(data.name, 'remotion');
+  assert.equal(data.license, 'MIT');
+  assert.equal(data.metadata, '');
+});
+
 test('parseFrontmatter throws without closing delimiter', () => {
   assert.throws(() => parseFrontmatter('---\nname: x\n'));
 });

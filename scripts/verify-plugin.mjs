@@ -11,16 +11,20 @@ const COMMAND_NAME_RE = /^[a-z0-9][a-z0-9_:-]{0,63}$/;
 const PLACEHOLDER_RE = /\b(TBD|TODO|FIXME|XXX)\b/;
 
 export function parseFrontmatter(text) {
-  if (!text.startsWith('---')) throw new Error('frontmatter: missing opening ---');
-  const end = text.indexOf('\n---', 3);
+  // Normalize CRLF (Windows autocrlf checkouts) — in JS regex, `.` does not
+  // match \r and `$` does not assert before it, so unnormalized CRLF lines
+  // with values silently fail the key match below.
+  const normalized = text.replace(/\r\n/g, '\n');
+  if (!normalized.startsWith('---')) throw new Error('frontmatter: missing opening ---');
+  const end = normalized.indexOf('\n---', 3);
   if (end === -1) throw new Error('frontmatter: missing closing ---');
-  const raw = text.slice(4, end).trim();
+  const raw = normalized.slice(4, end).trim();
   const data = {};
   for (const line of raw.split('\n')) {
     const m = line.match(/^([A-Za-z_-]+):\s*(.*)$/);
     if (m) data[m[1]] = m[2].replace(/^['"]|['"]$/g, '').trim();
   }
-  return { data, body: text.slice(end + 4) };
+  return { data, body: normalized.slice(end + 4) };
 }
 
 const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
