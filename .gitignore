@@ -4,3 +4,4 @@ node_modules/
 .superpowers/
 demo/out/
 demo/node_modules/
+*.bundle

@@ -5,7 +5,7 @@ ZCode client: desktop app (single-instance), session running this verification.
 
 ## Layer 1 — Static verification: PASS
 
-- `node --test scripts/verify-plugin.test.mjs` → 12/12 pass.
+- `node --test scripts/verify-plugin.test.mjs` → 13/13 pass (12 at the time + CRLF regression added later).
 - `node scripts/verify-plugin.mjs --offline` → all checks passed.
 - `node scripts/verify-plugin.mjs` (online) → online verify currently fails on
   exactly one URL — the plugin's own unpublished GitHub repo (exit 1); passes
@@ -54,7 +54,7 @@ Consequences and what was done instead:
 
 After this session ends (app restart or new conversation):
 
-1. Settings → Plugin Management → marketplace `zcode-remotion-local` shows plugin `remotion` installed & enabled (agent-side install already in place; alternatively remove it and re-add via GUI from `C:\Users\Tinkerclaw\Desktop\ZCode-Remotion` to exercise the panel flow).
+1. Settings → Plugin Management → marketplace `zcode-remotion-local` shows plugin `remotion` installed & enabled (agent-side install already in place; alternatively remove it and re-add via GUI from `C:\Users\<you>\Desktop\ZCode-Remotion` to exercise the panel flow).
 2. `/` menu in a NEW conversation lists `/remotion-setup`, `/remotion-doctor`, `/remotion-update`.
 3. `/remotion-doctor` runs and prints the 7-check table.
 4. Saying "帮我做一个10秒的产品宣传视频" auto-triggers the `remotion` skill (chat shows skill load event).
@@ -63,9 +63,9 @@ After this session ends (app restart or new conversation):
 
 ### Journey run (single prompt, no hints)
 
-- Setup: empty scratch dir `C:\Users\Tinkerclaw\Desktop\remotion-e2e`; machine state clean (only the
+- Setup: empty scratch dir `C:\Users\<you>\Desktop\remotion-e2e`; machine state clean (only the
   plugin's router skill present at user scope as the plugin stand-in; no official skills anywhere).
-- Prompt: `帮我做一个10秒的产品宣传视频，主题是 ZCode Remotion Plugin。请在 C:\Users\Tinkerclaw\Desktop\remotion-e2e 目录里工作。`
+- Prompt: `帮我做一个10秒的产品宣传视频，主题是 ZCode Remotion Plugin。请在 C:\Users\<you>\Desktop\remotion-e2e 目录里工作。`
 - Result: **one-pass deliverable** — `out/zcode-promo.mp4`, 10.05 s (300 frames @ 30 fps), 1920×1080,
   H.264, 2.6 MB (independently re-measured on disk: 2,637,385 bytes). Wall clock ≈19.4 min, 57 tool
   calls, zero human intervention.
