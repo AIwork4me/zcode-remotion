@@ -95,7 +95,7 @@ jobs:
 
       - name: Open validation-failed issue
         if: failure() && steps.drift.outputs.level == 'low'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('node:fs');
@@ -115,7 +115,7 @@ jobs:
 
       - name: Open high-risk review issue
         if: steps.drift.outputs.level == 'high'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('node:fs');
