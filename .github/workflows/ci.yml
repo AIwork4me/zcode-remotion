@@ -39,8 +39,9 @@ jobs:
   # PR merge gate: run the real compatibility smoke when behavior-relevant
   # files change, so Remotion compatibility failures surface BEFORE merge,
   # not on main. Docs/README-only changes skip the heavy Chrome render.
+  # On push events this job always reports code=true (main must always render);
+  # it exists as a job so the gate can depend on a single `needs` edge.
   changes:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
@@ -49,8 +50,14 @@ jobs:
         with: { fetch-depth: 0 }
       - id: filter
         env:
+          EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "push event — compat-smoke will run"
+            exit 0
+          fi
           if git diff --name-only "$BASE_SHA"...HEAD | grep -qE '^(skills/|commands/|scripts/|compatibility/|\.zcode-plugin/|marketplace\.json|\.github/workflows/)'; then
             echo "code=true" >> "$GITHUB_OUTPUT"
             echo "behavior-relevant changes detected — compat-smoke will run"
@@ -65,7 +72,7 @@ jobs:
   # main, and on PRs that touch behavior-relevant files (merge gate).
   compat-smoke:
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
