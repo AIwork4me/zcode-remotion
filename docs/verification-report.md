@@ -1,5 +1,97 @@
 # Verification Report — remotion ZCode plugin
 
+## 0.2.5 compatibility-state hotfix — 2026-09-01 — PASS
+
+OS: Windows 10 (10.0.26200) · Node v24.14.1.
+
+### Incident learned from Remotion 4.0.520
+
+The first real upstream movement exposed two governance defects:
+
+1. The automated baseline writer (PR #9) moved Remotion/skills to 4.0.520 but
+   preserved the previous Mediabunny 1.55.4 pairing. Its smoke proved that old
+   pairing could still render, not that it matched Remotion's official 4.0.520
+   pairing. Official Remotion state is 4.0.520 → Mediabunny 1.55.5.
+2. upstream-compatibility run 33498319236 passed static + real still + MP4
+   validation, then failed only at PR creation because the repository setting
+   "Allow GitHub Actions to create and approve pull requests" was disabled.
+   The old generic failure handler incorrectly opened Issue #8 as
+   "Compatibility validation FAILED".
+
+v0.2.5 fixes both root causes. Issue #8 remains untouched as valid historical
+evidence of the old classification defect.
+
+### Official pairing
+
+- **Remotion 4.0.520 → Mediabunny 1.55.5**
+- Sources (independently checked): `npm view @remotion/media@4.0.520
+  dependencies.mediabunny` → 1.55.5; `npm view @remotion/media-utils@4.0.520
+  dependencies.mediabunny` → 1.55.5; official compat page
+  (remotion.dev/docs/mediabunny/version) table row "4.0.520 | 1.55.5";
+  Remotion v4.0.520 release notes ("@remotion/media: Upgrade Mediabunny to
+  1.55.5", PR #11006).
+
+### Regression (stale-pairing fixture)
+
+Isolated fixture with the exact PR #9 defect (Remotion 4.0.520, manifest
+Mediabunny 1.55.4, official resolver 1.55.5):
+
+```
+smoke: official Mediabunny pairing check ... FAIL
+  compatibility baseline pairing mismatch: Remotion 4.0.520 officially pairs
+  with Mediabunny 1.55.5, but compatibility/remotion.json records 1.55.4
+```
+
+FAIL occurs BEFORE any install/render, as required.
+
+### PR
+
+- **PR #10** `fix: track official Mediabunny pairing in compatibility state`
+  → main; head SHA `fix/v025-compatibility-state` @ push; workflow run
+  **33503806472**, event **pull_request**, `changes` code=true
+- compat-smoke (job 99843061501): **official Mediabunny pairing check PASS**
+  · fresh project remotion@4.0.520 + mediabunny@**1.55.5** · 12/12 skills
+  @4.0.520 · `remotion versions` consistent · **still PASS (41,674 B)** ·
+  **MP4 PASS** · verify ×8 · online-verify · required-ci PASS
+- Merged (squash) through the protected flow; no administrator bypass.
+
+### Main
+
+- **SHA `854f45f`**, workflow run **33504004283**, compat-smoke job:
+  official Mediabunny pairing check PASS · still PASS · MP4 PASS ·
+  required-ci PASS · 12/12 checks successful.
+
+### Upstream governance
+
+- Post-merge upstream-compatibility dispatch (run 33504221944): success.
+- `drift: none` — recorded baseline (4.0.520 / 4.0.520 / 1.55.5, 12 skills)
+  equals the observed upstream state, including the Mediabunny pairing.
+- The real low-drift delivery path has now executed for 4.0.520: observation,
+  candidate write, static validation, still+MP4 smoke (run 33498319236), and
+  delivery was completed manually after enabling the repository's
+  "Allow GitHub Actions to create and approve pull requests" setting
+  (verified via `GET /actions/permissions/workflow` →
+  `can_approve_pull_request_reviews: true`).
+
+### Release-policy note
+
+Merging the 4.0.520 baseline PR (#9-era state, re-validated here) changes
+shipped plugin state; per the new policy this ships as plugin patch release
+**v0.2.5**.
+
+### Maintenance note
+
+Remotion 4.0.520 introduces/continues official Agent Plugin distribution
+(Studio WebMCP tooling). No zcode-remotion architecture change required in
+v0.2.5; future upstream plugin compatibility will be evaluated separately if
+Remotion exposes a ZCode-compatible plugin format.
+
+### Unit/static
+
+- `node --test scripts/verify-plugin.test.mjs` → **81/81 PASS** (new: Mediabunny
+  drift ×6, checkPairing ×1, resolver guard ×1, workflow classification policy ×1)
+- offline verifier PASS · online verifier PASS · release-check PASS (after release)
+
 ## 0.2.4 evidence-correction run — 2026-09-01 — PASS
 
 OS: Windows 10 (10.0.26200) · Node v24.14.1. This run corrected overstated
