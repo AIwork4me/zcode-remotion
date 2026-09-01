@@ -1,36 +1,142 @@
-name: drift-check
+name: upstream-compatibility
+
+# Daily upstream compatibility governance.
+#
+# - low-risk drift (version-only, same skill topology): validate for real,
+#   then open ONE deterministic PR that moves the recorded baseline. Never merged
+#   automatically.
+# - high-risk drift (major bump / skill added-removed-renamed): maintainer
+#   review issue — a changed topology is never treated as compatible.
+# - unknown (upstream unreadable): log only, no issue spam from transient failures.
+
 on:
   schedule:
-    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+    - cron: "17 2 * * *" # daily, off-round minute to reduce Actions congestion
   workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
 jobs:
-  check:
+  compatibility:
     runs-on: ubuntu-latest
-    permissions: { contents: read, issues: write }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
-      - name: Compare upstream skills version
+
+      - name: Observe upstream and classify drift
+        id: drift
         run: |
-          set -e
-          UPSTREAM=$(curl -fsSL https://raw.githubusercontent.com/remotion-dev/skills/main/package.json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).version||'unknown'))" 2>/dev/null || echo unknown)
-          RECORDED=$(grep -o 'Remotion Skills `[0-9.]*`' README.md | grep -o '[0-9.]*' || echo none)
-          echo "upstream=$UPSTREAM recorded=$RECORDED"
-          if [ "$UPSTREAM" != "$RECORDED" ] && [ "$UPSTREAM" != "unknown" ]; then
-            echo "DRIFT_DETECTED=$UPSTREAM" >> "$GITHUB_ENV"
+          node scripts/drift-check.mjs --json > drift.json
+          cat drift.json
+          node -e "
+            const fs = require('node:fs');
+            const d = JSON.parse(fs.readFileSync('./drift.json', 'utf8'));
+            const out = process.env.GITHUB_OUTPUT;
+            fs.appendFileSync(out, 'level=' + d.level + '\n');
+            fs.appendFileSync(out, 'pr_title=' + d.prTitle + '\n');
+            fs.appendFileSync(out, 'pr_branch=' + d.prBranch + '\n');
+            fs.appendFileSync(out, 'issue_title=' + (d.issueTitle ?? 'none') + '\n');
+            fs.appendFileSync(out, 'upstream=' + (d.upstream ? d.upstream.remotion : 'unknown') + '\n');
+          "
+
+      # ---- low-risk drift: rewrite baseline, then validate for real ----
+
+      - name: Update recorded baseline
+        if: steps.drift.outputs.level == 'low'
+        run: node scripts/drift-check.mjs --write
+
+      - name: Static validation
+        if: steps.drift.outputs.level == 'low'
+        run: |
+          node --test scripts/verify-plugin.test.mjs
+          node scripts/verify-plugin.mjs --offline
+
+      - name: Real Remotion smoke test at the new baseline
+        if: steps.drift.outputs.level == 'low'
+        run: node scripts/compat-smoke.mjs
+
+      - name: Open compatibility PR (never auto-merged)
+        if: steps.drift.outputs.level == 'low'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BRANCH: ${{ steps.drift.outputs.pr_branch }}
+          PR_TITLE: ${{ steps.drift.outputs.pr_title }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(gh pr list --state open --head "$PR_BRANCH" --json url -q '.[0].url')" ]; then
+            echo "compatibility PR already open for $PR_BRANCH — nothing to do"
+            exit 0
           fi
-      - name: Open drift issue
-        if: env.DRIFT_DETECTED
+          git checkout -b "$PR_BRANCH"
+          git add compatibility/remotion.json README.md README.zh-CN.md
+          git commit -m "$PR_TITLE"
+          git push origin "$PR_BRANCH"
+          {
+            echo "Automated compatibility baseline update (validated by this workflow:"
+            echo "unit tests + offline verifier + real Remotion smoke render)."
+            echo
+            echo "Human checklist before merging:"
+            echo "- [ ] Skim https://github.com/remotion-dev/remotion/releases for user-facing changes in the crossed range"
+            echo "- [ ] Check the Mediabunny pairing still matches https://www.remotion.dev/docs/mediabunny/version"
+            echo "- [ ] Routing table still covers every recorded skill"
+            echo
+            echo "This PR is never merged automatically."
+          } > pr-body.md
+          gh pr create --title "$PR_TITLE" --body-file pr-body.md --head "$PR_BRANCH" --base main
+
+      # ---- low-risk drift that failed validation ----
+
+      - name: Open validation-failed issue
+        if: failure() && steps.drift.outputs.level == 'low'
         uses: actions/github-script@v7
         with:
           script: |
-            const v = process.env.DRIFT_DETECTED;
-            const title = `Drift: upstream Remotion skills ${v} not covered`;
+            const fs = require('node:fs');
+            const d = JSON.parse(fs.readFileSync('./drift.json', 'utf8'));
+            const title = 'Compatibility validation FAILED: Remotion ' + d.upstream.remotion;
             const existing = await github.rest.issues.listForRepo({...context.repo, state: 'open'});
             if (existing.data.some(i => i.title === title)) return;
             await github.rest.issues.create({
               ...context.repo,
               title,
-              body: 'Upstream remotion-dev/skills is at ' + v + '. Review the routing table and environment guidance in skills/remotion/SKILL.md, bump "Tested against" in README.md, then rerun the journey audit (docs/verification-report.md).'
+              body: 'Upstream Remotion ' + d.upstream.remotion + ' moved (baseline: ' + d.recorded.remotion +
+                    '), but the compatibility validation run failed — maintainer review required.\n\n' +
+                    'See the workflow run for the failing step. Do not bump `compatibility/remotion.json` until this is resolved.'
             });
+
+      # ---- high-risk drift: maintainer review required ----
+
+      - name: Open high-risk review issue
+        if: steps.drift.outputs.level == 'high'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs');
+            const d = JSON.parse(fs.readFileSync('./drift.json', 'utf8'));
+            const title = d.issueTitle;
+            const existing = await github.rest.issues.listForRepo({...context.repo, state: 'open'});
+            if (existing.data.some(i => i.title === title)) return;
+            const lines = d.reasons.map(r => '- ' + r).join('\n');
+            await github.rest.issues.create({
+              ...context.repo,
+              title,
+              body: 'MAINTAINER REVIEW REQUIRED — upstream drift classified high-risk.\n\n' + lines +
+                    '\n\nRecorded baseline: Remotion ' + d.recorded.remotion + ' / skills ' + d.recorded.skills +
+                    '\nUpstream now: Remotion ' + d.upstream.remotion + ' / skills ' + d.upstream.skills +
+                    '\n\nChecklist:\n' +
+                    '- Review the upstream changes (https://github.com/remotion-dev/skills, https://github.com/remotion-dev/remotion/releases)\n' +
+                    '- For each NEW UPSTREAM SKILL: add routing coverage in `skills/remotion/SKILL.md`\n' +
+                    '- For each removed/renamed skill: update the routing table + docs\n' +
+                    '- Then update `compatibility/remotion.json` from a real verification run (see docs/verification-report.md)'
+            });
+
+      - name: Report unknown upstream state
+        if: steps.drift.outputs.level == 'unknown'
+        run: |
+          echo "Upstream state unreadable (npm/GitHub hiccup or rate limit) — skipping this run."
+          echo "No compatibility claim was made and no issue was opened (transient failures must not create issue spam)."

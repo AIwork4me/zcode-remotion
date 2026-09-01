@@ -4,7 +4,7 @@ description: "Remotion video workflow for ZCode: scaffold projects, write React 
 license: MIT
 metadata:
   author: ZCode Remotion Plugin Contributors
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Remotion Workflow — ZCode Integration Layer
@@ -40,11 +40,14 @@ npx -y skills add remotion-dev/skills -s '*' -y --copy -g
 - `--copy` is required on Windows (default symlink needs elevated privileges).
 - A cosmetic warning "PromptScript does not support global skill installation"
   is expected with `-g` and harmless.
+- Inside an existing Remotion project, the official CLI can do the same:
+  `npx remotion skills add` / `npx remotion skills update` (first-party
+  wrappers around the official installer).
 - Tell the user the skills were installed by the official Remotion installer and
   are licensed by Remotion (see NOTICE in the plugin repo).
-- If the user is offline or `npx` fails, fall back: download the 12 skill folders
-  from https://github.com/remotion-dev/skills into `.zcode/skills/` — user-side
-  fetch from the official repo, never vendored by this plugin.
+- If the user is offline or `npx` fails, fall back: download the official skill
+  folders from https://github.com/remotion-dev/skills into `.zcode/skills/` —
+  user-side fetch from the official repo, never vendored by this plugin.
 
 **Verify (mandatory, after the installer OR the manual fallback):** confirm on
 disk that the file actually exists — `.zcode/skills/remotion-best-practices/SKILL.md`
@@ -54,7 +57,7 @@ output alone; check the filesystem.
 
 > **Never report that skills/components were installed without verifying the files
 > exist on disk.** If the installer produced nothing, say so and use the manual
-> download fallback (fetch the 12 skill folders from
+> download fallback (fetch the official skill folders from
 > https://github.com/remotion-dev/skills into the scope directory); if that also
 > fails, report failure honestly and continue using your own knowledge while
 > telling the user the official skills are missing.
@@ -89,7 +92,7 @@ directly when you need their guidance.
 | App/product integration | `remotion-saas` | rendering infra, licensing tiers |
 | Studio interactivity | `remotion-interactivity` | editable/selectable in Studio |
 | Look up an API/prop | `remotion-docs` | search + fetch remotion.dev docs |
-| Upgrade Remotion deps | `remotion-upgrade` | also see /remotion-update |
+| Upgrade Remotion deps | `remotion-upgrade` | official-first flow, also see /remotion-update |
 | Audio/video metadata, conversion | `remotion-multimedia` | Mediabunny-based |
 | Unsure | `remotion-best-practices` | the official router |
 

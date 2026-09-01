@@ -5,10 +5,12 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateManifest, checkRouterCoverage } from './compatibility.mjs';
 
 const PLUGIN_NAME_RE = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const COMMAND_NAME_RE = /^[a-z0-9][a-z0-9_:-]{0,63}$/;
 const PLACEHOLDER_RE = /\b(TBD|TODO|FIXME|XXX)\b/;
+const SEMVER_RE = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
 export function parseFrontmatter(text) {
   // Normalize CRLF (Windows autocrlf checkouts) — in JS regex, `.` does not
@@ -24,7 +26,7 @@ export function parseFrontmatter(text) {
     const m = line.match(/^([A-Za-z_-]+):\s*(.*)$/);
     if (m) data[m[1]] = m[2].replace(/^['"]|['"]$/g, '').trim();
   }
-  return { data, body: normalized.slice(end + 4) };
+  return { data, raw, body: normalized.slice(end + 4) };
 }
 
 const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -45,9 +47,11 @@ export async function verifyPlugin(root, { offline = false } = {}) {
   if (!existsSync(manifestPath)) return { errors: ['.zcode-plugin/plugin.json is missing'], warnings };
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   if (!PLUGIN_NAME_RE.test(manifest.name ?? '')) errors.push(`invalid plugin name: ${manifest.name}`);
-  if (!/^\d+\.\d+\.\d+/.test(manifest.version ?? '')) errors.push('plugin.json: version must be semver');
+  if (!SEMVER_RE.test(manifest.version ?? '')) errors.push('plugin.json: version must be semver');
+  // The current ZCode plugin spec supports these fields, but this repository is
+  // deliberately zero-config: the restriction is project policy, not the spec.
   for (const key of ['hooks', 'mcpServers', 'userConfig', 'dependencies']) {
-    if (manifest[key]) errors.push(`plugin.json: ${key} is forbidden by spec (zero-config plugin)`);
+    if (manifest[key]) errors.push(`plugin.json: ${key} is forbidden by zcode-remotion project policy (zero-config plugin)`);
   }
 
   // 2. declared component dirs exist (manifests may use string or array form)
@@ -60,19 +64,28 @@ export async function verifyPlugin(root, { offline = false } = {}) {
 
   // 3. skills
   const skillsRoot = join(root, 'skills');
+  let routerSkillText = null;
   if (existsSync(skillsRoot)) {
     for (const entry of readdirSync(skillsRoot, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       const md = join(skillsRoot, entry.name, 'SKILL.md');
       if (!existsSync(md)) { errors.push(`skills/${entry.name}: SKILL.md missing`); continue; }
       try {
-        const { data } = parseFrontmatter(readFileSync(md, 'utf8'));
+        const text = readFileSync(md, 'utf8');
+        const { data, raw } = parseFrontmatter(text);
         if (!data.name) errors.push(`skills/${entry.name}: frontmatter name missing`);
         if (!data.description || data.description.length < 20) {
           errors.push(`skills/${entry.name}: description missing or too short to state when-to-use`);
         }
         if ((data.description ?? '').length > 1024) {
           errors.push(`skills/${entry.name}: description exceeds 1024 chars`);
+        }
+        if (entry.name === manifest.name) {
+          routerSkillText = text;
+          const m = raw.match(/^\s+version:\s*["']?([^"'\s]+)["']?\s*$/m);
+          if (!m || m[1] !== manifest.version) {
+            errors.push(`skills/${entry.name}: metadata version ${m ? m[1] : 'missing'} != plugin.json ${manifest.version}`);
+          }
         }
       } catch (err) {
         errors.push(`skills/${entry.name}: ${err.message}`);
@@ -97,7 +110,7 @@ export async function verifyPlugin(root, { offline = false } = {}) {
     }
   }
 
-  // 5. marketplace.json version sync
+  // 5. marketplace.json version sync + entry metadata shape
   const mpPath = join(root, 'marketplace.json');
   if (!existsSync(mpPath)) {
     errors.push('marketplace.json missing');
@@ -105,22 +118,74 @@ export async function verifyPlugin(root, { offline = false } = {}) {
     const mp = JSON.parse(readFileSync(mpPath, 'utf8'));
     const entry = (mp.plugins ?? []).find((p) => p.name === manifest.name);
     if (!entry) errors.push('marketplace.json: plugin entry not found');
-    else if (entry.version !== manifest.version) {
-      errors.push(`version mismatch: plugin.json ${manifest.version} vs marketplace.json ${entry.version}`);
+    else {
+      if (entry.version !== manifest.version) {
+        errors.push(`version mismatch: plugin.json ${manifest.version} vs marketplace.json ${entry.version}`);
+      }
+      if (entry.category != null && typeof entry.category !== 'string') {
+        errors.push('marketplace.json: category must be a string');
+      }
+      if (entry.tags != null && (!Array.isArray(entry.tags) || entry.tags.some((t) => typeof t !== 'string' || !t))) {
+        errors.push('marketplace.json: tags must be an array of non-empty strings');
+      }
     }
   }
 
-  // 6. placeholder scan in shipped files
-  const shippedRoots = ['skills', 'commands', '.zcode-plugin'].map((d) => join(root, d));
+  // 6. compatibility manifest — canonical machine-readable upstream baseline
+  const compatPath = join(root, 'compatibility', 'remotion.json');
+  let compat = null;
+  if (!existsSync(compatPath)) {
+    errors.push('compatibility/remotion.json is missing (canonical upstream baseline)');
+  } else {
+    try {
+      compat = JSON.parse(readFileSync(compatPath, 'utf8'));
+      const compatErrors = validateManifest(compat);
+      errors.push(...compatErrors.map((e) => `compatibility/remotion.json: ${e}`));
+      if (compatErrors.length === 0 && routerSkillText) {
+        const missing = checkRouterCoverage(compat.skills.names, routerSkillText);
+        for (const name of missing) {
+          errors.push(`compatibility/remotion.json: skill "${name}" has no routing coverage in skills/${manifest.name}/SKILL.md`);
+        }
+      }
+    } catch (err) {
+      errors.push(`compatibility/remotion.json: ${err.message}`);
+    }
+  }
+
+  // 7. shipped-file checks: placeholders + README tested-against sync
+  const shippedRoots = ['skills', 'commands', '.zcode-plugin', 'compatibility'].map((d) => join(root, d));
   const shippedFiles = [...shippedRoots.filter(existsSync).flatMap(walk),
-    ...['README.md', 'marketplace.json'].map((f) => join(root, f)).filter(existsSync)];
+    ...['README.md', 'README.zh-CN.md', 'marketplace.json'].map((f) => join(root, f)).filter(existsSync)];
   for (const f of shippedFiles) {
     const text = readFileSync(f, 'utf8');
     const m = text.match(PLACEHOLDER_RE);
     if (m) errors.push(`${f}: contains placeholder token ${m[0]}`);
   }
+  if (compat) {
+    for (const f of ['README.md', 'README.zh-CN.md']) {
+      const p = join(root, f);
+      if (!existsSync(p)) continue;
+      const text = readFileSync(p, 'utf8');
+      const rm = text.match(/Remotion `([^`]+)`/);
+      const sm = text.match(/(?:official skills|官方技能) `([^`]+)`/);
+      if (!rm || !sm) errors.push(`${f}: tested-against line missing (Remotion \`x.y.z\` · official skills \`x.y.z\`)`);
+      else {
+        if (rm[1] !== compat.remotion.tested) errors.push(`${f}: tested Remotion ${rm[1]} != compatibility manifest ${compat.remotion.tested}`);
+        if (sm[1] !== compat.skills.tested) errors.push(`${f}: tested skills ${sm[1]} != compatibility manifest ${compat.skills.tested}`);
+      }
+    }
+  }
 
-  // 7. link check (online only)
+  // 8. CHANGELOG latest version must match the release version
+  const changelogPath = join(root, 'CHANGELOG.md');
+  if (existsSync(changelogPath)) {
+    const m = readFileSync(changelogPath, 'utf8').match(/^##\s+(\d+\.\d+\.\d+)/m);
+    if (!m || m[1] !== manifest.version) {
+      errors.push(`CHANGELOG.md: latest version heading ${m ? m[1] : 'missing'} != plugin.json ${manifest.version}`);
+    }
+  }
+
+  // 9. link check (online only)
   if (!offline) {
     const urls = new Set(shippedFiles.flatMap((f) => extractUrls(readFileSync(f, 'utf8'))));
     for (const url of urls) {

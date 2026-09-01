@@ -1,5 +1,97 @@
 # Verification Report — remotion ZCode plugin
 
+## 0.2.0 compatibility run — 2026-09-01 — PASS
+
+OS: Windows 10 (10.0.26200) · Node v24.14.1. All commands below were executed for real
+in this session; nothing is simulated. Temp projects lived outside the repo and were
+removed afterward.
+
+### Upstream state (detected live, 2026-09-01)
+
+- `npm view remotion version` → **4.0.519**
+- `https://raw.githubusercontent.com/remotion-dev/skills/main/package.json` → **@remotion/skills 4.0.519**
+- `https://api.github.com/repos/remotion-dev/skills/contents/skills` → **12 skills**:
+  remotion-best-practices, remotion-captions, remotion-create, remotion-docs,
+  remotion-interactivity, remotion-maps, remotion-markup, remotion-multimedia,
+  remotion-render, remotion-saas, remotion-studio, remotion-upgrade
+- Mediabunny pairing for the 4.0.519 line: **1.55.4** (official
+  [compat page](https://www.remotion.dev/docs/mediabunny/version)); confirmed live —
+  remotion@4.0.519 + mediabunny@1.55.4 install without peer conflicts.
+
+### Baseline before any changes (0.1.0)
+
+- `node --test scripts/verify-plugin.test.mjs` → 14/14 pass
+- `node scripts/verify-plugin.mjs --offline` → pass · online → pass
+
+### `/remotion-update` flows (real runs)
+
+- **Case A (official CLI path)** — temp project pinned to 4.0.518
+  (`remotion`, `@remotion/cli`, `@remotion/transitions`): `npx remotion upgrade` →
+  "Newest Remotion version is 4.0.519 … Remotion has been upgraded!";
+  `npx remotion versions` → "All packages have the correct version.";
+  package.json + package-lock.json: all three deps at exactly 4.0.519, 0 mismatches.
+- **Case B (official manual fallback, no `@remotion/cli`)** — temp project pinned to
+  4.0.513 (`remotion`, `@remotion/media-utils`, `mediabunny@1.55.1`): upgraded every
+  Remotion package to 4.0.519 (exact) + mediabunny→1.55.4 per official compat page,
+  lockfile updated → `npm ls remotion @remotion/media-utils mediabunny` fully consistent.
+- **Skills refresh** — `npx skills update <12 official names> --yes -g` →
+  "✓ Updated 12 skill(s)"; on-disk frontmatter `version: 4.0.519` verified in
+  `~/.agents/skills/` AND `~/.zcode/skills/`.
+
+### `/remotion-doctor` logic (real runs in 3 scenarios)
+
+| Scenario | Result | Behavior |
+|---|---|---|
+| Valid project @ 4.0.519 | PASS | installed = latest (`npm view` 4.0.519) → no false alarm |
+| Directory without package.json | PASS | project check cleanly N/A, no false fail |
+| Outdated project @ 4.0.500 | PASS | correctly flags 4.0.500 < 4.0.519, fix = /remotion-update |
+
+### Clean-state compatibility smoke (real run)
+
+`node scripts/compat-smoke.mjs --mp4` (fresh temp project every step):
+
+| Step | Result | Evidence |
+|---|---|---|
+| Fresh project @ remotion@4.0.519 | OK (14s) | npm install + original smoke composition |
+| Bootstrap official skills (clean state, project scope) | OK (10s) | 12/12 skill folders with SKILL.md, frontmatter 4.0.519 |
+| `npx remotion versions` | OK (17s) | "All packages have the correct version" |
+| Real still render | OK (55s) | `out/frame.png`, 41,565 bytes |
+| Minimal real MP4 render | OK (12s) | `out/smoke.mp4` |
+
+→ `smoke: PASS — remotion@4.0.519, 12 official skills @ 4.0.519`
+
+### Final gate (0.2.0)
+
+- `node --test scripts/verify-plugin.test.mjs` → **35/35 pass** (compat manifest,
+  drift classification, router coverage, version-sync, policy wording, CRLF E2E)
+- `node scripts/verify-plugin.mjs --offline` → pass · online → pass
+- Workflow YAML: ci.yml + drift-check.yml parse clean (yaml@2); all JSON manifests parse
+- `compatibility/remotion.json` ↔ README/README.zh-CN ↔ CHANGELOG ↔ manifests versions all enforced by the verifier
+- No vendored upstream skill content (git ls-files audit); no placeholder tokens; no secrets/paths committed
+- Demo assets untouched; `demo/` pins 4.0.518 as the frozen, internally consistent
+  0.1.0 evidence artifact
+
+### Problems found during the run (all fixed)
+
+- `execFile('npm.cmd', …)` throws EINVAL on Windows (post-2024 Node argv-injection fix)
+  → drift-check now uses shell `exec` with a hardened literal command.
+- compat-smoke: missing `mkdir` for `src/`; step 1 returned npm stdout instead of the
+  project path (surfaced as `spawn cmd.exe ENOENT`); both fixed and re-run green.
+- ZCode plugin spec does support hooks/mcpServers/userConfig/dependencies → verifier
+  wording corrected to "forbidden by zcode-remotion project policy".
+- GitHub Discussions was not enabled (README link 404 in link check) → enabled via
+  authenticated API; Ideas / Q&A / Show and tell categories live.
+
+### Repo readiness (0.2.0)
+
+- GitHub Discussions: enabled (Ideas, Q&A, Show and tell + GitHub defaults).
+- Wiki: left enabled (no content lost either way); recommendation stands to disable it
+  as docs are Git-managed.
+
+---
+
+## 0.1.0 — original verification (2026-08-31)
+
 Plugin version: 0.1.0 · Date: 2026-08-31 · OS: Windows 10 (10.0.26200) · Node: v24.14.1
 ZCode client: desktop app (single-instance), session running this verification.
 

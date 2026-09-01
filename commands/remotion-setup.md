@@ -1,5 +1,5 @@
 ---
-description: Install the 12 official Remotion Agent Skills into ZCode and verify discovery
+description: Install the official Remotion Agent Skills into ZCode and verify discovery
 argument-hint: "[--project]"
 ---
 
@@ -21,8 +21,11 @@ ZCode can discover them. Idempotent — safe to re-run.
 
    `--copy` is mandatory on Windows. The warning
    "PromptScript does not support global skill installation" is expected and harmless.
-4. Verify: confirm 12 `remotion-*` folders each containing SKILL.md under
-   `~/.agents/skills/` (user, default) or `.zcode/skills/` (project). List them.
+4. Verify: confirm every installed `remotion-*` folder contains a SKILL.md under
+   `~/.agents/skills/` (user, default) or `.zcode/skills/` (project). Count them
+   and list the names — the upstream baseline (count + skill names + versions)
+   is recorded in the plugin repo's `compatibility/remotion.json`; report
+   anything that differs from it.
 5. Report to the user: installed skills table, scope used, licensing note
    (skills are Copyright Remotion under the Remotion License, fetched from the
    official source — this plugin does not redistribute them), and that a NEW
