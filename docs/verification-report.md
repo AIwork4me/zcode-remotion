@@ -1,5 +1,81 @@
 # Verification Report — remotion ZCode plugin
 
+## 0.2.2 reliability run — 2026-09-01 — PASS
+
+OS: Windows 10 (10.0.26200) · Node v24.14.1. Every claim below was executed and
+observed for real in this session.
+
+### Upstream (re-detected)
+
+Remotion **4.0.519** (`npm view remotion version`) · official skills **4.0.519** ·
+**12 skills** (GitHub API) · Mediabunny **1.55.4** · `drift: none` (one transient
+`unknown` during the run — the graceful-degradation path working as designed; no
+false claim, self-healed on retry).
+
+### Cross-platform recovery (real, Windows)
+
+Project @4.0.513 → `npx --yes --package=@remotion/cli@latest -- remotion upgrade`
+→ "Remotion has been upgraded!" → 4.0.519, `npx remotion versions` → "All
+packages have the correct version." No shell substitution anywhere in
+user-facing commands (verifier-enforced; regression-tested).
+
+### Skill integrity (fixtures + real machine)
+
+- Fixtures (unit tests, counts derived from `compatibility/remotion.json`):
+  sentinel-only → INCOMPLETE (11 missing); full install → complete; 1 missing →
+  incomplete; 3 missing → incomplete; extra `remotion-legacy-thing` → complete +
+  extra surfaced; project complete + user incomplete → project wins;
+  project incomplete + user complete → project wins, INCOMPLETE (scopes never
+  mix); nothing anywhere → `none`, bootstrap required.
+- Real machine: `node scripts/skill-paths.mjs` → `scope: user … 12/12 present`,
+  exit 0. Found & fixed a real bug en route: symlinked skill mirrors were
+  miscounted as 0/12 (`Dirent.isDirectory()` is false for symlinks).
+
+### SemVer
+
+`compareSemver`: 4.0.518 < 4.0.519 · 4.0.519 = 4.0.519 · 4.0.520 > 4.0.519 ·
+0.9.0 < 0.10.0 · 1.9.9 < 1.10.0 · prerelease rules per SemVer 2.0.0 · invalid →
+null → status "unknown". `versionStatus`: outdated / current / **ahead** /
+unknown. Drift: upstream below baseline → high-risk
+"UPSTREAM VERSION REGRESSION DETECTED … No automatic downgrade will be
+proposed" (unit-tested; `--write` refuses downgrades). Release comparison via
+the same helper (`0.2.1 vs 0.2.2` → release pending).
+
+### PR compatibility gate — REAL pull_request event
+
+- **PR #2** `fix/harden-skill-integrity-and-version-governance` → `main`
+- **Event: `pull_request`** (not push) — workflow run
+  [33464355784](https://github.com/AIwork4me/zcode-remotion/actions/runs/33464355784)
+- `changes` PASS · verify ×8 PASS · online-verify PASS · `compat-smoke` PASS
+  (42s: real install, Mediabunny pairing, skills bootstrap, `remotion versions`,
+  still render) · **`required-ci` PASS**
+- Merged via squash **through the required-check path**; post-merge main CI
+  run 33464901948: 12/12 jobs green (incl. real compat-smoke 45s) on `866b2c2`.
+- Docs-only path: validated by the docs PR carrying this very report —
+  `changes` → `code=false`, `compat-smoke` intentionally skipped,
+  `required-ci` PASS (observed before merge).
+
+### Repository protection — enabled and verified
+
+Ruleset **main-protection** (id 21978924) created via authenticated API and
+re-fetched: `enforcement: active`, rules = deletion + pull_request +
+required_status_checks (`required-ci`), bypass reserved for RepositoryAdmin
+(lockout safety). PR #2 merged successfully under this policy, proving the
+required check resolves.
+
+### Local validation
+
+- `node --test scripts/verify-plugin.test.mjs` → **58/58 PASS**
+- `node scripts/verify-plugin.mjs --offline` → PASS · online → PASS
+- `node scripts/drift-check.mjs` → `none` · `--json` → `none`
+- `node scripts/release-check.mjs` → 0.2.2 == CHANGELOG
+- `node scripts/compat-smoke.mjs` → PASS · `--mp4` → PASS
+- Baseline defect found & fixed: a lingering esbuild daemon could crash the
+  smoke's temp-dir cleanup AFTER a PASS (Windows EPERM) — cleanup is now
+  best-effort and outcome-preserving.
+
+---
+
 ## 0.2.1 stabilization run — 2026-09-01 — PASS
 
 OS: Windows 10 (10.0.26200) · Node v24.14.1. Same discipline as 0.2.0: every

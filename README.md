@@ -109,7 +109,7 @@ Share your video in [GitHub Discussions → Show and tell](https://github.com/AI
 
 | Symptom | Fix |
 |---|---|
-| `npx skills add` fails | Check `node -v` ≥ 18, retry; offline fallback in the skill |
+| `npx skills add` fails | Check `node -v` ≥ 18 and network, retry; network/cache recovery ladder in the remotion skill |
 | Chrome/Chromium download failure | Network/proxy blocking — see [chrome-headless-shell docs](https://www.remotion.dev/docs/chrome-headless-shell) |
 | `Could not find composition with ID …` | The `<Composition id>` must match the CLI argument |
 | `delayRender() … timed out` | Every `delayRender` needs a `continueRender` |
