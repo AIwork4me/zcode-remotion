@@ -4,7 +4,7 @@ description: "Remotion video workflow for ZCode: scaffold projects, write React 
 license: MIT
 metadata:
   author: ZCode Remotion Plugin Contributors
-  version: "0.2.3"
+  version: "0.2.4"
 ---
 
 # Remotion Workflow — ZCode Integration Layer
@@ -93,12 +93,13 @@ filesystem.
 
 > **Never report that skills/components were installed without verifying the files
 > exist on disk.** If nothing could be installed, report failure honestly and
-> continue using your own knowledge while telling the user the official skills
-> are missing.
-
-After bootstrap, the official skills become available as `remotion-*`
-skills/commands. ZCode registers plugin capabilities automatically; installed
-skills are visible under **Settings → Skills**, and ZCode picks up skill
+This plugin's own skill/commands register automatically on plugin enable. The
+official Remotion skills are EXTERNAL skill files: per the current ZCode docs,
+after installing or updating them open **Settings → Skills**, click **Refresh**,
+and confirm each skill is listed and enabled; only fall back to a new
+conversation if Refresh does not surface them. Do not toggle the plugin as a
+refresh mechanism for externally installed skills. Within the CURRENT session,
+read the installed SKILL.md files directly when you need their guidance.
 directories at session spawn. If they are not visible in the `/` menu, check
 Settings → Skills first, then start a new conversation. Within the CURRENT
 session, read the installed SKILL.md files directly when you need their

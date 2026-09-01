@@ -3,8 +3,9 @@
 // version recorded in compatibility/remotion.json, bootstraps the official
 // skills from a clean state (project scope), and renders — no mocks.
 //
-//   node scripts/compat-smoke.mjs          still frame only (CI default)
-//   node scripts/compat-smoke.mjs --mp4    also render a minimal MP4
+//   node scripts/compat-smoke.mjs          still frame only (summary says so explicitly)
+//   node scripts/compat-smoke.mjs --mp4    also render a minimal MP4 — REQUIRED for the
+//                                          compatibility gate (ci.yml, low-drift baseline PRs)
 //   node scripts/compat-smoke.mjs --keep   keep the temp project for inspection
 //
 // Exit 0 only if: install OK, skill names/count/version on disk match the
@@ -145,20 +146,40 @@ const still = await step('render still frame', async ({ timeout }) => {
   return `out/frame.png ${bytes} bytes`;
 });
 
-// 5. optional minimal MP4
+// 5. minimal MP4 (required for the compatibility gate via --mp4)
+let mp4Summary = 'MP4: not requested (still-only run)';
 if (withMp4) {
-  await step('render minimal MP4', async ({ timeout }) => {
+  const mp4 = await step('render minimal MP4', async ({ timeout }) => {
     const out = 'out/smoke.mp4';
     await run(`npx remotion render src/index.ts Smoke ${out}`, { cwd: project, timeout, windowsHide: true });
     const p = join(project, out);
     if (!existsSync(p)) throw new Error('MP4 missing');
     const bytes = statSync(p).size;
     if (bytes < 10_000) throw new Error(`MP4 suspiciously small: ${bytes} bytes`);
-    return `out/smoke.mp4 ${bytes} bytes`;
+    // ffprobe when available (GitHub runners ship it): duration + dimensions.
+    let probe = '';
+    try {
+      const { stdout } = await run(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -show_entries format=duration -of csv=p=0 ${out}`, { cwd: project, timeout: 60_000, windowsHide: true });
+      const [dims, duration] = stdout.trim().split('\n');
+      const [w, h] = (dims || '').split(',').map((n) => Number.parseInt(n, 10));
+      if (!Number.isFinite(w) || !Number.isFinite(h) || !(Number(duration) > 0)) throw new Error(`unusable ffprobe output: ${stdout.slice(0, 120)}`);
+      if (w !== 1280 || h !== 720) throw new Error(`dimensions ${w}x${h} != composition 1280x720`);
+      probe = `, duration ${Number(duration).toFixed(2)}s, ${w}x${h} (ffprobe)`;
+    } catch (err) {
+      if (err.message?.includes('dimensions') || err.message?.includes('unusable ffprobe')) throw err;
+      probe = ' (ffprobe unavailable — verified: render exit status, existence, size)';
+    }
+    return `out/smoke.mp4 ${bytes} bytes${probe}`;
   });
+  mp4Summary = `MP4: PASS (${mp4})`;
 }
 
-console.log(`smoke: PASS — remotion@${REMOTION_V}, ${SKILL_NAMES.length} official skills @ ${SKILLS_V}, still ${still}`);
+// Unambiguous evidence summary: the MP4 line states PASS only when --mp4 ran.
+console.log('smoke: PASS');
+console.log(`Remotion: ${REMOTION_V}`);
+console.log(`official skills: ${SKILL_NAMES.length} (v${SKILLS_V})`);
+console.log(`still: PASS (${still})`);
+console.log(mp4Summary);
 await cleanupWithRetry();
 
 function readdirCount(dir) {

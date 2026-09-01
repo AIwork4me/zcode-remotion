@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml/badge.svg)](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.3-8b5cf6.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.4-8b5cf6.svg)](CHANGELOG.md)
 [![ZCode Plugin](https://img.shields.io/badge/ZCode-Plugin-22d3ee.svg)](https://zcode.z.ai/cn/docs/plugin)
 
 **一句话，从想法到 MP4。**
@@ -64,8 +64,9 @@ Remotion 自带的官方 Agent Skills 非常优秀——本插件**不替代**�
 
 需要 Node ≥ 18（[点此安装](https://nodejs.org)），支持 Windows / macOS / Linux。
 
-ZCode 会在安装后自动刷新插件能力。如果新技能或 `/remotion-*` 命令暂未显示，
-新开一个会话，或在插件列表里停用再启用即可。
+插件自带组件（remotion 技能与 `/remotion-*` 命令）在安装时自动注册。官方 Remotion
+技能属于外部安装：按 ZCode 当前文档，打开 **设置 → 技能**，点击 **刷新**，确认技能
+已列出并保持开启。若仍未显示，新开一个会话即可。
 
 ## 你会得到什么
 

@@ -15,8 +15,13 @@ const PLACEHOLDER_RE = /\b(TBD|TODO|FIXME|XXX)\b/;
 // contradict that promise and must not reappear in shipped content.
 const FORBIDDEN_GATE_PHRASES = [
   'still frame for approval',
+  'still frame you approve',
+  'still frame for you to approve',
+  'wait for your approval',
+  'wait for user approval',
   'only after the user approves',
   'user approves the still',
+  'only after your approval',
   'approve the look',
   '先渲染静帧给你确认',
   '先确认画面',
@@ -219,6 +224,16 @@ export async function verifyPlugin(root, { offline = false } = {}) {
     const m = readFileSync(changelogPath, 'utf8').match(/^##\s+(\d+\.\d+\.\d+)/m);
     if (!m || m[1] !== manifest.version) {
       errors.push(`CHANGELOG.md: latest version heading ${m ? m[1] : 'missing'} != plugin.json ${manifest.version}`);
+    }
+  }
+
+  // 9. CI compatibility gate must render a real MP4 — "verified MP4" claims
+  //    require MP4 evidence, not a still-only smoke.
+  const ciPath = join(root, '.github', 'workflows', 'ci.yml');
+  if (existsSync(ciPath)) {
+    const ci = readFileSync(ciPath, 'utf8');
+    if (!ci.includes('compat-smoke.mjs --mp4')) {
+      errors.push('.github/workflows/ci.yml: the compat-smoke gate must run `compat-smoke.mjs --mp4` (a still-only gate cannot support verified-MP4 claims)');
     }
   }
 
