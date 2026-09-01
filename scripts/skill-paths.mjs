@@ -79,6 +79,9 @@ export function inspectSkillInstall({ mode = 'auto', projectRoot = null, home = 
   if (!['auto', 'project', 'global'].includes(mode)) {
     throw new Error(`unknown mode: ${mode}`);
   }
+  if (mode === 'project' && !projectRoot) {
+    throw new Error('projectRoot is required in project mode');
+  }
   const expected = expectedSkillNames ?? loadExpectedSkillNames();
 
   let candidates;
@@ -143,12 +146,17 @@ if (process.argv[1] && process.argv[1].endsWith('skill-paths.mjs')) {
     console.error('skill-paths: --project requires a directory argument');
     process.exit(64);
   }
+  const homeIdx = args.indexOf('--home');
+  if (homeIdx !== -1 && (args[homeIdx + 1] === undefined || args[homeIdx + 1].startsWith('--'))) {
+    console.error('skill-paths: --home requires a directory argument');
+    process.exit(64);
+  }
 
   const mode = wantsGlobal ? 'global' : projectIdx !== -1 ? 'project' : 'auto';
   const result = inspectSkillInstall({
     mode,
     projectRoot: mode === 'global' ? null : projectArg ?? process.cwd(),
-    home: args.includes('--home') ? args[args.indexOf('--home') + 1] : homedir(),
+    home: homeIdx !== -1 ? args[homeIdx + 1] : homedir(),
   });
 
   console.log(`mode: ${result.mode}`);

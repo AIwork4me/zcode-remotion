@@ -59,7 +59,7 @@ jobs:
 
       - name: Real Remotion smoke test at the new baseline
         if: steps.drift.outputs.level == 'low'
-        run: node scripts/compat-smoke.mjs
+        run: node scripts/compat-smoke.mjs --mp4
 
       - name: Open compatibility PR (never auto-merged)
         if: steps.drift.outputs.level == 'low'

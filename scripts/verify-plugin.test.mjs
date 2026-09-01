@@ -690,3 +690,49 @@ test('marketplace entry: strict must be boolean, true is accepted', async () => 
   });
   assert.ok(bad.errors.some((e) => e.includes('strict')));
 });
+
+// --- evidence semantics (v0.2.4) ---
+
+test('evidence wording: stale human-approval phrasing fails, legitimate optional-approval passes', async () => {
+  const stale = await withTempPlugin({
+    readmeMd: 'Tested against: Remotion `4.0.519` · official skills `4.0.519`\ngates every render on a still frame you approve\n',
+  });
+  assert.ok(stale.errors.some((e) => e.includes('still frame you approve')));
+  const legit = await withTempPlugin({
+    skillMd: ROUTER_SKILL_MD + '\nAsk the user only when they explicitly requested approval.\n',
+  });
+  assert.deepEqual(legit.errors, []);
+});
+
+test('evidence wording: every known stale default-approval phrase is caught', async () => {
+  for (const phrase of ['still frame you approve', 'still frame for you to approve', 'wait for your approval', 'wait for user approval', 'only after your approval']) {
+    const r = await withTempPlugin({
+      commandMd: '---\ndescription: d\n---\nfull render ' + phrase + '\n',
+    });
+    assert.ok(r.errors.some((e) => e.includes(phrase)), phrase + ' should be flagged');
+  }
+});
+
+test('CI gate: compat-smoke must run --mp4 (verified-MP4 claims need MP4 evidence)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'verify-plugin-'));
+  makePlugin(root);
+  mkdirSync(join(root, '.github', 'workflows'), { recursive: true });
+  writeFileSync(join(root, '.github', 'workflows', 'ci.yml'), 'jobs:\n  compat-smoke:\n    steps:\n      - run: node scripts/compat-smoke.mjs\n');
+  const stale = await verifyPlugin(root, { offline: true });
+  assert.ok(stale.errors.some((e) => e.includes('--mp4')));
+  writeFileSync(join(root, '.github', 'workflows', 'ci.yml'), 'jobs:\n  compat-smoke:\n    steps:\n      - run: node scripts/compat-smoke.mjs --mp4\n');
+  const good = await verifyPlugin(root, { offline: true });
+  assert.ok(!good.errors.some((e) => e.includes('--mp4')));
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('CLI: --home without a value is a usage error (exit 64)', () => {
+  const r = spawnSync(process.execPath, [join(SCRIPTS_DIR, 'skill-paths.mjs'), '--home'], { encoding: 'utf8' });
+  assert.equal(r.status, 64);
+  assert.ok((r.stderr || '').includes('--home requires a directory argument'));
+});
+
+test('project mode without projectRoot fails fast with a clear error', () => {
+  assert.throws(() => inspectSkillInstall({ mode: 'project', projectRoot: null, expectedSkillNames: EXPECTED }),
+    /projectRoot is required in project mode/);
+});

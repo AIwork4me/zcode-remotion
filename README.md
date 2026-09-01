@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml/badge.svg)](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.3-8b5cf6.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.4-8b5cf6.svg)](CHANGELOG.md)
 [![ZCode Plugin](https://img.shields.io/badge/ZCode-Plugin-22d3ee.svg)](https://zcode.z.ai/cn/docs/plugin)
 
 **One prompt from idea to MP4.**
@@ -13,7 +13,7 @@ One prompt → official Remotion skills → environment preflight → visual QA 
 [ZCode](https://zcode.z.ai) is an AI coding agent; [Remotion](https://www.remotion.dev) makes
 videos with React. Remotion ships excellent official Agent Skills — this plugin doesn't replace
 them. It orchestrates them inside ZCode, reliably: it bootstraps the official skills, pre-flights
-the environment, gates every render on a still frame you approve, verifies the output, and keeps
+the environment, gates every render on an agent-inspected representative still, verifies the output, and keeps
 watch on upstream compatibility so the workflow keeps working as Remotion evolves.
 
 **English** · [简体中文](README.zh-CN.md)
@@ -56,7 +56,7 @@ skills. We make them reliable inside ZCode.**
 | Render output verification | — | Yes |
 | `/remotion-doctor` | — | Yes |
 | Upstream compatibility monitoring | — | Yes (daily, with validated auto-PRs) |
-| ZCode real-client E2E evidence | — | Yes ([report](docs/verification-report.md)) |
+| ZCode real-client E2E evidence | — | Historical journey evidence; current CI compatibility evidence linked ([report](docs/verification-report.md)) |
 
 ## Install
 
@@ -68,9 +68,11 @@ skills. We make them reliable inside ZCode.**
 
 Requires Node ≥ 18 ([get it here](https://nodejs.org)). Works on Windows / macOS / Linux.
 
-ZCode refreshes plugin capabilities automatically after install. If the new skills
-or `/remotion-*` commands are not visible yet, start a new conversation or toggle
-the plugin off/on.
+Plugin components (this plugin's skill and `/remotion-*` commands) register
+automatically on install. The official Remotion skills are installed externally:
+per the current ZCode docs, open **Settings → Skills**, click **Refresh**, and
+confirm they are listed and enabled. If they still do not appear, start a new
+conversation.
 
 ## What you get
 

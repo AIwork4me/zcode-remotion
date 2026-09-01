@@ -1,5 +1,30 @@
 # Verification Report — remotion ZCode plugin
 
+## Evidence correction — v0.2.4 audit
+
+The 0.2.3 report below overstated two things. Factual corrections, auditable
+from the actual workflow logs; the historical sections are preserved as
+written, with these corrections governing:
+
+- **Render evidence**: PR #4 (run 33478165576, job 99761753454) and the
+  post-merge main run (33478325902, job 99762213230) executed
+  `node scripts/compat-smoke.mjs` — the still-only variant. They performed the
+  real project install / Mediabunny pairing / official-skill bootstrap /
+  `remotion versions` check / **still render**, and did NOT invoke the
+  optional `--mp4` step. The 0.2.3 "Product workflow" and CI paragraphs
+  therefore proved a real **still render, not an MP4 render**; the "MP4
+  render" wording in them was incorrect. v0.2.4 changes the required gate to
+  `compat-smoke.mjs --mp4` and records that evidence in the 0.2.4 section. A
+  later MP4-capable gate does not retroactively change what v0.2.3 proved.
+- **ZCode refresh evidence**: the 0.2.3 "current docs" claim ("no manual
+  skill-refresh button") was based on the Plugin docs page only. The official
+  ZCode **Skill** docs (https://zcode.z.ai/docs/skill) DO document a manual
+  refresh — **Settings → Skills → Refresh** — after creating, importing or
+  editing skills, and document no automatic pickup of externally added skill
+  files. Guidance in `/remotion-setup`, the router skill and the READMEs was
+  corrected in v0.2.4, and the stale CHANGELOG bullets carry inline
+  correction markers.
+
 ## 0.2.3 consistency run — 2026-09-01 — PASS
 
 OS: Windows 10 (10.0.26200) · Node v24.14.1. All evidence below was executed

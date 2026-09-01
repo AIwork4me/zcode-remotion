@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.2.4 — 2026-09-01
+
+Evidence correction — public claims now match executed validation. No new
+product surface.
+
+- **The required compatibility gate now renders a real MP4**: behavior-relevant
+  PRs, main pushes and low-drift baseline validation run
+  `compat-smoke.mjs --mp4` (previously still-only). The smoke prints an
+  unambiguous summary (`MP4: PASS …` only when MP4 actually ran; a still-only
+  run says so explicitly), and checks duration/dimensions via `ffprobe` when
+  the runner provides it. A verifier rule fails any regression to a
+  still-only gate.
+- **Historical v0.2.3 CI evidence corrected**: PR #4 (run 33478165576) and the
+  post-merge main run (33478325902) executed the still-only smoke — they prove
+  a real still render, NOT an MP4 render. The v0.2.3 verification report and
+  release notes claimed MP4 renders; both are corrected (see
+  docs/verification-report.md, "Evidence correction — v0.2.4 audit"). A later
+  MP4-capable gate does not retroactively change what v0.2.3 proved.
+- **Correction — ZCode skill refresh**: the official ZCode Skill docs
+  (zcode.z.ai/docs/skill) DO document a manual refresh — Settings → Skills →
+  Refresh — after creating, importing or editing skills; externally added
+  skill files are not auto-picked-up. The v0.2.2/v0.2.3 guidance ("no manual
+  skill-refresh button", toggle-plugin advice) was based on the Plugin docs
+  only and was wrong for externally installed skills. `/remotion-setup`, the
+  router skill and both READMEs now instruct Settings → Skills → Refresh
+  (new conversation as fallback; plugin toggle is not a refresh mechanism).
+- **Removed the last mandatory-human-approval wording** ("gates every render
+  on a still frame you approve") and extended the verifier's forbidden-phrase
+  guard (still frame you approve / wait for your approval / only after your
+  approval / …) while keeping legitimate opt-in approval wording valid.
+- **README evidence qualification**: "ZCode real-client E2E evidence" is now
+  described as historical journey evidence plus current CI compatibility
+  evidence, not an unqualified "Yes".
+- **Small CLI/API validation fixes** (`scripts/skill-paths.mjs`):
+  `--home`/`--project` without a value → usage error (exit 64); project mode
+  without `projectRoot` → clear fail-fast error.
+
 ## 0.2.3 — 2026-09-01
 
 Consistency patch — implementation, commands, docs, CI policy and the product
@@ -31,9 +68,11 @@ promise now agree. No new product surface.
   not independently verified. README + 简体中文 updated to match; a verifier
   rule now rejects stale human-approval-gate wording.
 - **ZCode refresh guidance re-verified against current docs** (2026-09-01):
-  current ZCode documents no manual skill-refresh button — skills are visible
-  under Settings → Skills, plugin components register automatically, and a new
-  conversation is the fallback for externally installed skills.
+  externally installed skills surface under Settings → Skills, plugin
+  components register automatically, and a new conversation is the fallback
+  for externally installed skills. (CORRECTED in v0.2.4: this entry wrongly
+  claimed ZCode documents no manual skill-refresh button — the official Skill
+  docs do document Settings → Skills → Refresh.)
 - **Main-branch merge freshness**: the `main-protection` ruleset now requires
   branches to be up to date before merging (strict status checks), keeping
   `required-ci` as the single required check.
@@ -70,8 +109,8 @@ Reliability patch — no new features.
   baseline raises a check-evidence warning, never a false "incompatible".
 - **ZCode refresh guidance corrected against current docs**: installed skills
   are visible under **Settings → Skills**; plugin components register
-  automatically; new-conversation fallback retained (current ZCode documents
-  no manual skill-refresh button).
+  automatically; new-conversation fallback retained. (CORRECTED in v0.2.4:
+  this entry wrongly claimed ZCode documents no manual skill-refresh button.)
 - **PR compatibility gate hardened**: new `required-ci` aggregator job gives
   branch protection one stable required check that passes when the heavy
   smoke is legitimately skipped on docs-only PRs.

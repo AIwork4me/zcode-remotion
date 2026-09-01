@@ -50,7 +50,10 @@ verify the REQUESTED scope's full integrity. Idempotent — safe to re-run.
 6. Report to the user: installed skills table, scope used, licensing note
    (skills are Copyright Remotion under the Remotion License, fetched from the
    official source — this plugin does not redistribute them), and that the
-   skills are visible under **Settings → Skills** and usable immediately by
-   reading their SKILL.md files; if they do not show up there or in the `/`
-   menu, start a new conversation. If any check fails, run the /remotion-doctor
-   flow and report findings instead of guessing.
+   official source — this plugin does not redistribute them), and the current
+   ZCode skill-discovery step: open **Settings → Skills**, click **Refresh**,
+   and confirm every skill is listed and enabled (official ZCode Skill docs).
+   The plugin's own `/remotion-*` commands register automatically on install;
+   only start a new conversation if Refresh does not surface the skills. If any
+   check fails, run the /remotion-doctor flow and report findings instead of
+   guessing.
