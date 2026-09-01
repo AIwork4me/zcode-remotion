@@ -83,6 +83,7 @@ export async function observeUpstream() {
 // official Mediabunny pairing resolved from the candidate Remotion version.
 // The result is a CANDIDATE baseline — the real smoke must still pass before
 // it can be considered verified.
+export function writeUpstream(manifest, upstream, today, { manifestPath = MANIFEST_PATH, readmePaths = README_PATHS } = {}) {
   const next = {
     ...manifest,
     remotion: { ...manifest.remotion, tested: upstream.remotion },
