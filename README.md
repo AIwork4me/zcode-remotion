@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml/badge.svg)](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.2-8b5cf6.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.3-8b5cf6.svg)](CHANGELOG.md)
 [![ZCode Plugin](https://img.shields.io/badge/ZCode-Plugin-22d3ee.svg)](https://zcode.z.ai/cn/docs/plugin)
 
 **One prompt from idea to MP4.**
@@ -32,8 +32,8 @@ Watch the full 23s demo: [docs/assets/demo.mp4](docs/assets/demo.mp4) · project
 You:    帮我做一个10秒的产品宣传视频，主题是 ZCode Remotion Plugin
 Agent:  ✅ loads the remotion skill → bootstraps the official Remotion skills
         ✅ scaffolds the project (package manager auto-detected)
-        ✅ writes the scenes → shows you a still frame for approval
-        ✅ renders → verifies the MP4 → hands you the path
+        ✅ writes the scenes → renders a representative still and visually checks it
+        ✅ fixes issues if needed → renders the final MP4 → verifies the output
 You:    （23 minutes later, zero intervention）🎉
 ```
 
@@ -52,7 +52,7 @@ skills. We make them reliable inside ZCode.**
 | Chinese + English routing validation | — | Tested |
 | Environment preflight | — | Yes |
 | Package-manager detection | — | Yes |
-| Still-frame visual QA gate | — | Yes |
+| Automated still-frame visual QA gate | — | Yes (agent-inspected, autonomous) |
 | Render output verification | — | Yes |
 | `/remotion-doctor` | — | Yes |
 | Upstream compatibility monitoring | — | Yes (daily, with validated auto-PRs) |
@@ -89,7 +89,7 @@ the plugin off/on.
                           │  2. environment pre-flight (node / package manager / platform)
                           │  3. route to the right official skill ──┐
                           ▼                                       ▼
-                still-frame gate (approve the look)    Remotion's official skills
+                still-frame gate (Agent visual QA)    Remotion's official skills
                           │                            create · markup · studio · render
                           ▼                                       │
                 full render ──▶ output verified ──────────────────┘

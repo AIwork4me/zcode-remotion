@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.2.3 — 2026-09-01
+
+Consistency patch — implementation, commands, docs, CI policy and the product
+promise now agree. No new product surface.
+
+- **Skill integrity no longer depends on a sentinel**: discovery treats a
+  directory as containing an installation when ANY expected skill
+  (`compatibility/remotion.json` → `skills.names`) is present — a router-only
+  install is INCOMPLETE, and an install missing the router is INCOMPLETE (not
+  "absent"). Missing skills are named and repaired in place.
+- **Explicit scope modes**: `inspectSkillInstall` gains
+  `mode: auto | project | global`; `--global` inspects only user scope,
+  `--project` only project scope, auto preserves priority (a partial project
+  install is reported for project repair, never silently replaced by a
+  complete user install). The two user paths are one logical global scope:
+  complete-in-either wins, otherwise the most-complete is reported — contents
+  are never unioned. CLI exit codes: 0 complete · 1 incomplete · 2 absent ·
+  64 usage error.
+- **`/remotion-setup` contradiction removed**: "router exists → done" vs
+  "router alone is NOT complete" is gone — the command now verifies the
+  requested scope explicitly (`--global` by default, `--project .` for project
+  installs) and only a COMPLETE report counts as success.
+- **Autonomous Agent visual QA**: the still-frame gate is now
+  agent-inspected (objective checks: blanks, clipping, overlap, contrast,
+  layout, artifacts) and proceeds automatically on PASS — keeping
+  "one prompt from idea to MP4" truthful. Humans are asked only for
+  explicit-approval requests or subjective/ambiguous/low-confidence choices.
+  Output verification prefers `ffprobe` and states exactly what was and was
+  not independently verified. README + 简体中文 updated to match; a verifier
+  rule now rejects stale human-approval-gate wording.
+- **ZCode refresh guidance re-verified against current docs** (2026-09-01):
+  current ZCode documents no manual skill-refresh button — skills are visible
+  under Settings → Skills, plugin components register automatically, and a new
+  conversation is the fallback for externally installed skills.
+- **Main-branch merge freshness**: the `main-protection` ruleset now requires
+  branches to be up to date before merging (strict status checks), keeping
+  `required-ci` as the single required check.
+- Merged `actions/github-script` v7 → v9 (Dependabot #1) after reviewing the
+  scripts for the documented breaking changes; the real `required-ci` gate ran
+  on the PR.
+
 ## 0.2.2 — 2026-09-01
 
 Reliability patch — no new features.

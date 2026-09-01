@@ -1,6 +1,6 @@
 {
   "name": "remotion",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Create, preview and render videos with Remotion in ZCode. The reliability layer: bootstraps the official Remotion Agent Skills via the official installer, pre-flights the environment, routes to the right official skill, gates renders on visual QA. 用官方安装器引导 Remotion 官方技能，环境预检、静帧门禁、渲染校验一体化。",
   "author": "ZCode Remotion Plugin Contributors",
   "homepage": "https://github.com/AIwork4me/zcode-remotion",

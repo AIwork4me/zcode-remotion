@@ -10,6 +10,17 @@ import { validateManifest, checkRouterCoverage } from './compatibility.mjs';
 const PLUGIN_NAME_RE = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const COMMAND_NAME_RE = /^[a-z0-9][a-z0-9_:-]{0,63}$/;
 const PLACEHOLDER_RE = /\b(TBD|TODO|FIXME|XXX)\b/;
+// Product-promise consistency: the render gate is AUTONOMOUS agent visual QA
+// ("one prompt from idea to MP4"). These stale human-approval-gate phrasings
+// contradict that promise and must not reappear in shipped content.
+const FORBIDDEN_GATE_PHRASES = [
+  'still frame for approval',
+  'only after the user approves',
+  'user approves the still',
+  'approve the look',
+  '先渲染静帧给你确认',
+  '先确认画面',
+];
 const SEMVER_RE = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
 export function parseFrontmatter(text) {
@@ -180,6 +191,12 @@ export async function verifyPlugin(root, { offline = false } = {}) {
     const text = readFileSync(f, 'utf8');
     const m = text.match(PLACEHOLDER_RE);
     if (m) errors.push(`${f}: contains placeholder token ${m[0]}`);
+    const normalized = text.replace(/\r\n/g, '\n').toLowerCase();
+    for (const phrase of FORBIDDEN_GATE_PHRASES) {
+      if (normalized.includes(phrase.toLowerCase())) {
+        errors.push(`${f}: contradicts the autonomous visual-QA promise ("${phrase}") — the still gate is agent-inspected, human approval is opt-in`);
+      }
+    }
   }
   if (compat) {
     for (const f of ['README.md', 'README.zh-CN.md']) {

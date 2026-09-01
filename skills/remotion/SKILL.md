@@ -4,7 +4,7 @@ description: "Remotion video workflow for ZCode: scaffold projects, write React 
 license: MIT
 metadata:
   author: ZCode Remotion Plugin Contributors
-  version: "0.2.2"
+  version: "0.2.3"
 ---
 
 # Remotion Workflow — ZCode Integration Layer
@@ -23,26 +23,30 @@ territory — route to the official `remotion-multimedia` skill after bootstrap.
 ## 1. Bootstrap gate (always run first)
 
 Check whether official skills are installed — and whether the installation is
-COMPLETE. A single `remotion-best-practices/SKILL.md` is not sufficient
-evidence. Detection priority (scopes are never mixed):
+COMPLETE. No single skill (not even `remotion-best-practices`) proves a healthy
+install: any ONE expected skill with a valid SKILL.md means an installation
+exists; the expected set comes exclusively from `compatibility/remotion.json`
+→ `skills.names`.
+
+Detection priority (scopes are never mixed):
 
 1. Project scope: `<repo>/.zcode/skills/`
 2. User scope, ZCode-native: `~/.zcode/skills/`
 3. User scope, installer: `~/.agents/skills/`
 
-The first scope containing `remotion-best-practices/SKILL.md` is THE detected
-installation. Integrity-check it against the canonical list
-(`compatibility/remotion.json` → `skills.names`; `node scripts/skill-paths.mjs`
-prints a ready-made report):
+The first scope containing ANY expected skill is THE detected installation
+(automatic mode — run `node scripts/skill-paths.mjs` for a ready-made report,
+`--global` / `--project .` to check one scope explicitly). Then:
 
 - **complete** (every expected skill has a SKILL.md) → done, no reinstall.
   Extra `remotion-*` folders are not a failure — report them, upstream
   topology may have changed.
-- **incomplete** (some expected skills missing) → report, e.g.
+- **incomplete** (1..N-1 expected skills present — including a router-only
+  install or an install missing the router) → report, e.g.
   `Official Remotion skills: 10/12 present — Missing: remotion-render,
   remotion-captions`, then REPAIR IN THE DETECTED SCOPE via the installer
   below (never fill a project install from user scope or vice versa).
-- **none** (no router skill in any scope) → bootstrap now (never silently
+- **absent** (no expected skill in any scope) → bootstrap now (never silently
   skip, never proceed without):
 
 ```bash
@@ -82,7 +86,8 @@ Never convert a failed user-scope install into a project-scope install (or the
 reverse) without asking. **Verify (mandatory, every path):** confirm on disk
 that every expected skill (the canonical list in
 `compatibility/remotion.json` → `skills.names`) has its SKILL.md in the
-requested scope — `node scripts/skill-paths.mjs` prints the report. Do not
+requested scope — `node scripts/skill-paths.mjs --global` (or `--project .`)
+prints the report and only a COMPLETE report counts as success. Do not
 rely on the installer's exit code or console output alone; check the
 filesystem.
 
@@ -135,10 +140,31 @@ https://www.remotion.dev/docs/ai/skills.
 
 ## 4. No-rework render loop (mandatory for render requests)
 
-1. **Still-frame gate**: render one frame first — `npx remotion still <comp> out/frame.png --frame=<representative-frame>` — then display it to the user (image Read) and get visual confirmation. Iterate markup here, NOT after full render.
-2. **Full render**: only after the user approves the still. For renders expected
-   >1 min, run in background and report progress.
-3. **Output verification**: confirm the MP4 exists, and check duration/dimensions match the composition (`ffprobe` if available, else trust render logs). Report absolute path to the user.
+The still-frame gate is autonomous: the AGENT visually inspects the still and,
+on PASS, proceeds to the full render without interrupting the user. This is
+what keeps "one prompt → verified MP4" truthful.
+
+1. **Still-frame gate**: render one representative frame — `npx remotion still
+   <comp> out/frame.png --frame=<representative-frame>`.
+2. **Agent visual QA** (mandatory): actually inspect the generated image with
+   the environment's image-reading/vision capability. Check at least: blank or
+   failed render · missing images/assets · text clipping or overflow ·
+   obvious overlap · bad framing · unreadable typography · low contrast ·
+   unexpected transparent/black areas · broken layout · obvious artifacts.
+   If problems exist: fix markup → rerender still → inspect again. Iterate
+   here, NOT after the full render.
+3. **Decide**: objective QA PASS → proceed to full render automatically. Ask
+   the user ONLY when they explicitly requested approval, the choice is
+   inherently subjective, brand/aesthetic intent is ambiguous, or confidence
+   is low (e.g. "which logo treatment do you prefer?"). Never interrupt a
+   straightforward render just to ask "is this frame OK?".
+4. **Full render**: proceed after QA PASS. For renders expected >1 min, run in
+   background and report progress.
+5. **Output verification**: confirm the MP4 exists and is non-empty; prefer
+   `ffprobe` (when available) for duration and dimensions vs the composition.
+   If `ffprobe` is unavailable, say exactly what was verified (existence, size,
+   render exit status) and what was not — never claim "video verified" from an
+   exit code alone. Report the absolute path.
 
 ## 5. Failure triage
 

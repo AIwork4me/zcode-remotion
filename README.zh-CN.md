@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml/badge.svg)](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.2-8b5cf6.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.3-8b5cf6.svg)](CHANGELOG.md)
 [![ZCode Plugin](https://img.shields.io/badge/ZCode-Plugin-22d3ee.svg)](https://zcode.z.ai/cn/docs/plugin)
 
 **一句话，从想法到 MP4。**
@@ -30,8 +30,8 @@ Remotion 自带的官方 Agent Skills 非常优秀——本插件**不替代**�
 你：    帮我做一个10秒的产品宣传视频，主题是 ZCode Remotion Plugin
 智能体：✅ 加载 remotion skill → 引导安装 Remotion 官方技能
         ✅ 脚手架建项目（自动识别包管理器）
-        ✅ 写分镜场景 → 先渲染静帧给你确认
-        ✅ 全量渲染 → 校验 MP4 → 交付路径
+        ✅ 写分镜场景 → 渲染代表性静帧并自主视觉检查
+        ✅ 有问题先修复 → 全量渲染 → 校验产物
 你：    （23 分钟后，全程零干预）🎉
 ```
 
@@ -84,7 +84,7 @@ ZCode 会在安装后自动刷新插件能力。如果新技能或 `/remotion-*`
                     │  2. 环境预检（node / 包管理器 / 平台）
                     │  3. 路由到正确的官方技能 ──┐
                     ▼                          ▼
-          静帧门禁（先确认画面）      Remotion 官方技能
+          静帧门禁（智能体视觉 QA）   Remotion 官方技能
                     │                 create · markup · studio · render
                     ▼                          │
           全量渲染 ──▶ 产物校验 ────────────────┘

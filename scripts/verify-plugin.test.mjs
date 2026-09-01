@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -374,97 +374,205 @@ const makeInstall = (root, where, names, extra = []) => {
   return { project: join(root, 'repo'), home: join(root, 'home'), dir };
 };
 const allBut = (n) => EXPECTED.filter((x) => x !== n);
+const inspect = (fx, mode) => inspectSkillInstall({ mode, home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
 
-test('integrity: sentinel-only install is detected as INCOMPLETE, not installed', () => {
+test('integrity: router-only install is INCOMPLETE (never a sentinel for "installed")', () => {
   const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
   const fx = makeInstall(root, 'zcode', [ROUTER_SKILL]);
-  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
+  const r = inspect(fx, 'auto');
   assert.equal(r.scope, 'user');
   assert.equal(r.complete, false);
   assert.equal(r.found, 1);
-  assert.equal(r.expected, EXPECTED.length);
   assert.ok(r.missing.includes('remotion-render') && r.missing.includes('remotion-captions'));
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: missing router but all other skills present → INCOMPLETE with router missing', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const fx = makeInstall(root, 'zcode', allBut(ROUTER_SKILL));
+  const r = inspect(fx, 'auto');
+  assert.equal(r.scope, 'user'); // an installation EXISTS — not 'none'
+  assert.equal(r.complete, false);
+  assert.deepEqual(r.missing, [ROUTER_SKILL]);
+  assert.equal(r.found, EXPECTED.length - 1);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: one non-router skill only → detected as incomplete installation', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const fx = makeInstall(root, 'zcode', ['remotion-render']);
+  const r = inspect(fx, 'auto');
+  assert.equal(r.scope, 'user');
+  assert.equal(r.complete, false);
+  assert.equal(r.found, 1);
+  assert.ok(!r.missing.includes('remotion-render'));
   rmSync(root, { recursive: true, force: true });
 });
 
 test('integrity: complete install — no reinstall', () => {
   const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
   const fx = makeInstall(root, 'agents', EXPECTED);
-  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
+  const r = inspect(fx, 'auto');
   assert.deepEqual({ scope: r.scope, complete: r.complete, found: r.found, missing: r.missing, extra: r.extra },
     { scope: 'user', complete: true, found: EXPECTED.length, missing: [], extra: [] });
   rmSync(root, { recursive: true, force: true });
 });
 
-test('integrity: one expected skill missing is incomplete', () => {
+test('integrity: one and several missing non-router skills are incomplete', () => {
   const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
-  const fx = makeInstall(root, 'zcode', allBut('remotion-render'));
-  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
-  assert.equal(r.complete, false);
+  let fx = makeInstall(root, 'zcode', allBut('remotion-render'));
+  let r = inspect(fx, 'auto');
   assert.deepEqual(r.missing, ['remotion-render']);
-  assert.equal(r.found, EXPECTED.length - 1);
-  rmSync(root, { recursive: true, force: true });
-});
-
-test('integrity: multiple expected skills missing', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const root2 = mkdtempSync(join(tmpdir(), 'skill-int-'));
   const missing = ['remotion-render', 'remotion-captions', 'remotion-maps'];
-  const fx = makeInstall(root, 'zcode', EXPECTED.filter((n) => !missing.includes(n)));
-  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
+  fx = makeInstall(root2, 'zcode', EXPECTED.filter((n) => !missing.includes(n)));
+  r = inspect(fx, 'auto');
   assert.equal(r.complete, false);
   assert.equal(r.missing.length, 3);
-  assert.deepEqual([...r.missing].sort(), [...missing].sort());
   rmSync(root, { recursive: true, force: true });
+  rmSync(root2, { recursive: true, force: true });
 });
 
-test('integrity: extra unknown remotion-* skill is complete-but-reported', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
-  const fx = makeInstall(root, 'zcode', EXPECTED, ['remotion-legacy-thing']);
-  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
-  assert.equal(r.complete, true); // extras are not a failure
-  assert.deepEqual(r.extra, ['remotion-legacy-thing']); // …but surfaced (topology may have changed)
-  rmSync(root, { recursive: true, force: true });
-});
-
-test('integrity: project complete + user incomplete → project wins, complete', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
-  const proj = makeInstall(root, 'project', EXPECTED);
-  makeInstall(root, 'zcode', [ROUTER_SKILL]);
-  const r = inspectSkillInstall({ home: proj.home, projectRoot: proj.project, expectedSkillNames: EXPECTED });
-  assert.equal(r.scope, 'project');
-  assert.equal(r.complete, true);
-  rmSync(root, { recursive: true, force: true });
-});
-
-test('integrity: project incomplete + user complete → project wins, INCOMPLETE (scopes never mix)', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
-  const proj = makeInstall(root, 'project', allBut('remotion-render'));
-  makeInstall(root, 'zcode', EXPECTED);
-  const r = inspectSkillInstall({ home: proj.home, projectRoot: proj.project, expectedSkillNames: EXPECTED });
-  assert.equal(r.scope, 'project'); // first scope with the router skill is THE installation
-  assert.equal(r.complete, false);
-  assert.deepEqual(r.missing, ['remotion-render']);
-  rmSync(root, { recursive: true, force: true });
-});
-
-test('integrity: ~/.zcode/skills outranks ~/.agents/skills', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
-  const fx = makeInstall(root, 'zcode', EXPECTED);
-  makeInstall(root, 'agents', [ROUTER_SKILL]);
-  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
-  assert.equal(r.scope, 'user');
-  assert.ok(r.dir.includes(join('.zcode', 'skills')));
-  assert.equal(r.complete, true);
-  rmSync(root, { recursive: true, force: true });
-});
-
-test('integrity: no valid install anywhere → scope none, bootstrap required', () => {
+test('integrity: no expected skills anywhere → absent (bootstrap)', () => {
   const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
   mkdirSync(join(root, 'home'), { recursive: true });
   const r = inspectSkillInstall({ home: join(root, 'home'), projectRoot: join(root, 'repo'), expectedSkillNames: EXPECTED });
-  assert.deepEqual({ scope: r.scope, dir: r.dir, found: r.found, complete: r.complete },
-    { scope: 'none', dir: null, found: 0, complete: false });
+  assert.deepEqual({ mode: r.mode, scope: r.scope, dir: r.dir, found: r.found, complete: r.complete },
+    { mode: 'auto', scope: 'none', dir: null, found: 0, complete: false });
   rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: unknown extra remotion-* only → NOT an installation (expected skills define it)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const fx = makeInstall(root, 'zcode', [], ['remotion-legacy-thing']);
+  const r = inspect(fx, 'auto');
+  assert.equal(r.scope, 'none'); // no expected skill present → nothing installed
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: complete + extra unknown skill → complete with extra surfaced', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const fx = makeInstall(root, 'zcode', EXPECTED, ['remotion-legacy-thing']);
+  const r = inspect(fx, 'auto');
+  assert.equal(r.complete, true);
+  assert.deepEqual(r.extra, ['remotion-legacy-thing']);
+  rmSync(root, { recursive: true, force: true });
+});
+
+// --- scope modes (auto / project / global) ---
+
+test('scope: auto prefers a PARTIAL project install over a complete global one', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-scope-'));
+  const proj = makeInstall(root, 'project', [ROUTER_SKILL, 'remotion-render']); // partial project
+  makeInstall(root, 'zcode', EXPECTED); // complete global
+  const r = inspect(proj, 'auto');
+  assert.equal(r.scope, 'project');
+  assert.equal(r.complete, false); // reported for project repair — not silently replaced
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('scope: --global ignores a complete project install', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-scope-'));
+  const proj = makeInstall(root, 'project', EXPECTED); // complete project
+  makeInstall(root, 'zcode', [ROUTER_SKILL]);          // partial global
+  const r = inspect(proj, 'global');
+  assert.equal(r.scope, 'user');
+  assert.equal(r.complete, false); // user-scope truth, not the project's
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('scope: --project ignores a complete global install', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-scope-'));
+  const proj = makeInstall(root, 'project', [ROUTER_SKILL]); // partial project
+  makeInstall(root, 'zcode', EXPECTED);                       // complete global
+  const r = inspect(proj, 'project');
+  assert.equal(r.scope, 'project');
+  assert.equal(r.complete, false);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('scope: global finds a complete install in either user path, prefers complete', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-scope-'));
+  const fx = makeInstall(root, 'zcode', EXPECTED);
+  assert.equal(inspect(fx, 'global').dir.includes(join('.zcode', 'skills')), true);
+  const root2 = mkdtempSync(join(tmpdir(), 'skill-scope-'));
+  makeInstall(root2, 'zcode', [ROUTER_SKILL]);  // incomplete canonical path
+  const fx2 = makeInstall(root2, 'agents', EXPECTED); // complete installer path
+  const r = inspect(fx2, 'global');
+  assert.equal(r.complete, true);
+  assert.ok(r.dir.includes(join('.agents', 'skills'))); // the complete one wins
+  rmSync(root, { recursive: true, force: true });
+  rmSync(root2, { recursive: true, force: true });
+});
+
+test('scope: global with no install → absent; project with partial stays partial', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-scope-'));
+  const fx = makeInstall(root, 'project', EXPECTED);
+  assert.equal(inspect(fx, 'global').scope, 'none'); // --global ignores project entirely
+  const root2 = mkdtempSync(join(tmpdir(), 'skill-scope-'));
+  const fx2 = makeInstall(root2, 'project', [ROUTER_SKILL]);
+  const r = inspect(fx2, 'project');
+  assert.equal(r.scope, 'project');
+  assert.equal(r.complete, false);
+  rmSync(root, { recursive: true, force: true });
+  rmSync(root2, { recursive: true, force: true });
+});
+
+test('scope: invalid mode throws', () => {
+  assert.throws(() => inspectSkillInstall({ mode: 'both', expectedSkillNames: EXPECTED }));
+});
+
+// --- CLI behavior (real child-process runs) ---
+
+const runCli = (args, opts = {}) => {
+  const r = spawnSync(process.execPath, [join(SCRIPTS_DIR, 'skill-paths.mjs'), ...args], { encoding: 'utf8', ...opts });
+  return { code: r.status, out: (r.stdout || '') + (r.stderr || '') };
+};
+const cliFixture = (projectNames, zcodeNames) => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-cli-'));
+  const fx = makeInstall(root, 'project', projectNames);
+  makeInstall(root, 'zcode', zcodeNames);
+  return { root, fx };
+};
+
+test('CLI: --global checks user scope only; --project checks project only', () => {
+  const { root, fx } = cliFixture(EXPECTED, [ROUTER_SKILL]);
+  const g = runCli(['--global', '--home', fx.home]);
+  assert.equal(g.code, 1); // partial global
+  assert.ok(g.out.includes('mode: global') && g.out.includes('status: INCOMPLETE'));
+  const p = runCli(['--project', fx.project]);
+  assert.equal(p.code, 0); // complete project
+  assert.ok(p.out.includes('mode: project') && p.out.includes('status: COMPLETE'));
+  const a = runCli(['--home', fx.home], { cwd: fx.project }); // no flag → auto → complete project wins
+  assert.ok(a.out.includes('mode: auto') && a.out.includes('scope: project'));
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('CLI: conflicting flags → exit 64; unknown flag → exit 64', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-cli-'));
+  const conflict = runCli(['--global', '--project', '.']);
+  assert.equal(conflict.code, 64);
+  assert.ok(conflict.out.includes('mutually exclusive'));
+  const unknown = runCli(['--wat']);
+  assert.equal(unknown.code, 64);
+  assert.ok(unknown.out.includes('unknown option'));
+  const noArg = runCli(['--project']);
+  assert.equal(noArg.code, 64);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('CLI: exit codes 0/1/2 map to complete/incomplete/absent', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-cli-'));
+  const fxFull = makeInstall(root, 'project', EXPECTED);
+  assert.equal(runCli(['--project', fxFull.project]).code, 0);
+  const root2 = mkdtempSync(join(tmpdir(), 'skill-cli-'));
+  const fxPartial = makeInstall(root2, 'project', [ROUTER_SKILL]);
+  assert.equal(runCli(['--project', fxPartial.project]).code, 1);
+  const home2 = join(root2, 'empty-home');
+  mkdirSync(home2, { recursive: true });
+  assert.equal(runCli(['--global', '--home', home2]).code, 2);
+  rmSync(root, { recursive: true, force: true });
+  rmSync(root2, { recursive: true, force: true });
 });
 
 // --- SemVer comparison (compareSemver / versionStatus) ---
@@ -563,6 +671,13 @@ test('update command regression: Bash-only $() substitution is flagged (Windows 
   const { errors } = await verifyPlugin(root, { offline: true });
   rmSync(root, { recursive: true, force: true });
   assert.ok(errors.some((e) => e.includes('remotion-update.md') && e.includes('cross-platform')));
+});
+
+test('product consistency: human-approval-gate wording contradicts the one-prompt promise', async () => {
+  const { errors } = await withTempPlugin({
+    readmeMd: 'Tested against: Remotion `4.0.519` · official skills `4.0.519`\n\nrenders a still frame for approval\n',
+  });
+  assert.ok(errors.some((e) => e.includes('autonomous visual-QA promise') && e.includes('still frame for approval')));
 });
 
 test('marketplace entry: strict must be boolean, true is accepted', async () => {
