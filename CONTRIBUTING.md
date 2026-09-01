@@ -14,7 +14,9 @@
   docs/verification-report.md) — never by editing the version numbers by
   hand. The daily `upstream-compatibility` workflow proposes validated
   updates automatically; high-risk drift (major bump / skill topology
-  change) always needs a human.
+  change) always needs a human. A merged change to `compatibility/remotion.json`
+  changes shipped plugin compatibility state and therefore requires a plugin
+  patch release so existing ZCode installs can receive the new baseline.
 - Never vendor content from `remotion-dev/skills` or the Remotion repo into this
   plugin — Remotion License forbids redistribution. Reference upstream by URL or
   via the official installer instead.

@@ -127,7 +127,7 @@ jobs:
         if: >-
           failure() &&
           steps.drift.outputs.level == 'low' &&
-          (steps.static_validation.outcome == 'failure' || steps.compat_validation.outcome == 'failure')
+          (steps.candidate_write.outcome == 'failure' || steps.static_validation.outcome == 'failure' || steps.compat_validation.outcome == 'failure')
         uses: actions/github-script@v9
         with:
           script: |
@@ -152,8 +152,10 @@ jobs:
         if: >-
           failure() &&
           steps.drift.outputs.level == 'low' &&
+          steps.candidate_write.outcome == 'success' &&
           steps.static_validation.outcome == 'success' &&
-          steps.compat_validation.outcome == 'success'
+          steps.compat_validation.outcome == 'success' &&
+          steps.pr_delivery.outcome == 'failure'
         uses: actions/github-script@v9
         with:
           script: |
