@@ -33,17 +33,19 @@ ZCode can discover them. Idempotent — safe to re-run.
      (user → `~/.zcode/skills/`, project → `.zcode/skills/`);
    - truly offline → use an already-installed/cached copy if one exists;
      otherwise report honestly that official skills cannot be installed now.
-5. Verify: confirm every installed `remotion-*` folder contains a SKILL.md under
-   the requested scope (`~/.zcode/skills/` or `~/.agents/skills/` for user,
-   `.zcode/skills/` for project). Count them and list the names — the upstream
-   baseline (count + skill names + versions) is recorded in the plugin repo's
-   `compatibility/remotion.json` (`node scripts/skill-names.mjs` prints it);
-   report anything that differs from it.
+5. Verify the installation is COMPLETE — `node scripts/skill-paths.mjs` prints
+   the report: every skill recorded in `compatibility/remotion.json`
+   (`skills.names`) must have its SKILL.md in the requested scope
+   (`~/.zcode/skills/` or `~/.agents/skills/` for user, `.zcode/skills/` for
+   project). A lone router skill is NOT a complete install. Report as
+   `Official Remotion skills: N/M present`, list any missing skills, and note
+   extra `remotion-*` folders (upstream topology may have changed). If
+   incomplete, repair IN THE SAME SCOPE before reporting success.
 6. Report to the user: installed skills table, scope used, licensing note
    (skills are Copyright Remotion under the Remotion License, fetched from the
-   official source — this plugin does not redistribute them), and that ZCode
-   refreshes plugin capabilities automatically — if the `/remotion-*` commands
-   are not in the `/` menu yet, toggle the plugin off/on or start a new
-   conversation; the skills themselves are usable immediately by reading their
-   SKILL.md files. If any check fails, run the /remotion-doctor flow and report
-   findings instead of guessing.
+   official source — this plugin does not redistribute them), and that the
+   skills are visible under **Settings → Skills** and usable immediately by
+   reading their SKILL.md files; if the `/remotion-*` commands are not in the
+   `/` menu yet, ZCode registers them automatically — toggle the plugin
+   off/on or start a new conversation. If any check fails, run the
+   /remotion-doctor flow and report findings instead of guessing.

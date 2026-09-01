@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { compareSemver } from './compatibility.mjs';
 
 const run = promisify(exec);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,8 +38,10 @@ if (process.argv.includes('--github')) {
   try {
     const { stdout } = await run('gh api repos/:owner/:repo/releases/latest --jq .tag_name', { timeout: 30_000, windowsHide: true });
     const latest = stdout.trim().replace(/^v/, '');
-    if (latest === version) console.log(`release-check: GitHub latest release v${latest} == plugin.json ${version}`);
-    else if (latest > version) fail(`GitHub latest release v${latest} is NEWER than plugin.json ${version} — version drift`);
+    const c = compareSemver(latest, version);
+    if (c === null) fail(`cannot parse versions: release v${latest} vs plugin.json ${version}`);
+    else if (c === 0) console.log(`release-check: GitHub latest release v${latest} == plugin.json ${version}`);
+    else if (c > 0) fail(`GitHub latest release v${latest} is NEWER than plugin.json ${version} — source/release version drift`);
     else console.log(`release-check: GitHub latest release v${latest} is older than plugin.json ${version} (release for v${version} not yet published)`);
   } catch {
     console.log('release-check: gh unavailable/unauthenticated — GitHub release comparison skipped (local checks are authoritative)');
