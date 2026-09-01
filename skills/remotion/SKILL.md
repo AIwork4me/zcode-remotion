@@ -4,7 +4,7 @@ description: "Remotion video workflow for ZCode: scaffold projects, write React 
 license: MIT
 metadata:
   author: ZCode Remotion Plugin Contributors
-  version: "0.2.1"
+  version: "0.2.2"
 ---
 
 # Remotion Workflow — ZCode Integration Layer
@@ -22,14 +22,28 @@ territory — route to the official `remotion-multimedia` skill after bootstrap.
 
 ## 1. Bootstrap gate (always run first)
 
-Check whether official skills are installed (any ONE of these means installed —
-do not reinstall merely because one location is missing):
+Check whether official skills are installed — and whether the installation is
+COMPLETE. A single `remotion-best-practices/SKILL.md` is not sufficient
+evidence. Detection priority (scopes are never mixed):
 
-- Project scope: `<repo>/.zcode/skills/remotion-best-practices/SKILL.md`
-- User scope, ZCode-native path: `~/.zcode/skills/remotion-best-practices/SKILL.md`
-- User scope, installer path: `~/.agents/skills/remotion-best-practices/SKILL.md`
+1. Project scope: `<repo>/.zcode/skills/`
+2. User scope, ZCode-native: `~/.zcode/skills/`
+3. User scope, installer: `~/.agents/skills/`
 
-If NONE exists, bootstrap now (never silently skip, never proceed without):
+The first scope containing `remotion-best-practices/SKILL.md` is THE detected
+installation. Integrity-check it against the canonical list
+(`compatibility/remotion.json` → `skills.names`; `node scripts/skill-paths.mjs`
+prints a ready-made report):
+
+- **complete** (every expected skill has a SKILL.md) → done, no reinstall.
+  Extra `remotion-*` folders are not a failure — report them, upstream
+  topology may have changed.
+- **incomplete** (some expected skills missing) → report, e.g.
+  `Official Remotion skills: 10/12 present — Missing: remotion-render,
+  remotion-captions`, then REPAIR IN THE DETECTED SCOPE via the installer
+  below (never fill a project install from user scope or vice versa).
+- **none** (no router skill in any scope) → bootstrap now (never silently
+  skip, never proceed without):
 
 ```bash
 npx -y skills add remotion-dev/skills -s '*' -y --copy -g
@@ -66,20 +80,24 @@ official installer fails
 
 Never convert a failed user-scope install into a project-scope install (or the
 reverse) without asking. **Verify (mandatory, every path):** confirm on disk
-that `remotion-best-practices/SKILL.md` actually exists in the requested scope
-before proceeding. Do not rely on the installer's exit code or console output
-alone; check the filesystem.
+that every expected skill (the canonical list in
+`compatibility/remotion.json` → `skills.names`) has its SKILL.md in the
+requested scope — `node scripts/skill-paths.mjs` prints the report. Do not
+rely on the installer's exit code or console output alone; check the
+filesystem.
 
 > **Never report that skills/components were installed without verifying the files
 > exist on disk.** If nothing could be installed, report failure honestly and
 > continue using your own knowledge while telling the user the official skills
 > are missing.
 
-After bootstrap, the official skills appear as `remotion-*` skills/commands.
-ZCode picks up skills at session spawn and refreshes plugin capabilities
-automatically; if they are not visible in the `/` menu, toggle the plugin
-off/on or start a new conversation. Within the CURRENT session, read the
-installed SKILL.md files directly when you need their guidance.
+After bootstrap, the official skills become available as `remotion-*`
+skills/commands. ZCode registers plugin capabilities automatically; installed
+skills are visible under **Settings → Skills**, and ZCode picks up skill
+directories at session spawn. If they are not visible in the `/` menu, check
+Settings → Skills first, then start a new conversation. Within the CURRENT
+session, read the installed SKILL.md files directly when you need their
+guidance.
 
 ## 2. Environment pre-flight (before create/render)
 

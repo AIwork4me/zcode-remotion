@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml/badge.svg)](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.1-8b5cf6.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.2-8b5cf6.svg)](CHANGELOG.md)
 [![ZCode Plugin](https://img.shields.io/badge/ZCode-Plugin-22d3ee.svg)](https://zcode.z.ai/cn/docs/plugin)
 
 **One prompt from idea to MP4.**
@@ -109,7 +109,7 @@ Share your video in [GitHub Discussions → Show and tell](https://github.com/AI
 
 | Symptom | Fix |
 |---|---|
-| `npx skills add` fails | Check `node -v` ≥ 18, retry; offline fallback in the skill |
+| `npx skills add` fails | Check `node -v` ≥ 18 and network, retry; network/cache recovery ladder in the remotion skill |
 | Chrome/Chromium download failure | Network/proxy blocking — see [chrome-headless-shell docs](https://www.remotion.dev/docs/chrome-headless-shell) |
 | `Could not find composition with ID …` | The `<Composition id>` must match the CLI argument |
 | `delayRender() … timed out` | Every `delayRender` needs a `continueRender` |

@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.2.2 — 2026-09-01
+
+Reliability patch — no new features.
+
+- **Cross-platform upgrade recovery**: the Windows current-CLI recovery in
+  /remotion-update no longer uses Bash `$(...)` (broken in PowerShell/cmd) —
+  `npx --yes --package=@remotion/cli@latest -- remotion upgrade`, verified on
+  Windows against an outdated 4.0.513 project; the verifier now rejects
+  shell-specific substitution in user-facing update commands.
+- **Installation integrity, not just presence**: skill discovery checks the
+  FULL recorded list (`compatibility/remotion.json` → `skills.names`) in the
+  detected scope and classifies complete / incomplete / missing — reporting
+  e.g. `Official Remotion skills: 10/12 present` with the missing names,
+  surfacing extra `remotion-*` folders, and pinning repair to the detected
+  scope. `node scripts/skill-paths.mjs` prints the report. Fixed a real-world
+  bug: symlinked skill mirrors were miscounted as 0/12.
+- **True SemVer comparison**: `compareSemver` (numeric, prerelease-aware)
+  replaces string equality/ordering — `versionStatus` now returns
+  outdated / current / **ahead** / unknown, and `0.9.0 < 0.10.0` compares
+  correctly. Applied to doctor logic, drift classification and release-check.
+- **Drift regression protection**: upstream falling BELOW the recorded
+  baseline is classified high-risk with an explicit
+  "UPSTREAM VERSION REGRESSION DETECTED … No automatic downgrade will be
+  proposed"; the baseline auto-PR writer refuses downgrades.
+- **Doctor: latest upstream ≠ last verified baseline** — a version newer than
+  upstream is informational ("ahead"); newer than the plugin's verified
+  baseline raises a check-evidence warning, never a false "incompatible".
+- **ZCode refresh guidance corrected against current docs**: installed skills
+  are visible under **Settings → Skills**; plugin components register
+  automatically; new-conversation fallback retained (current ZCode documents
+  no manual skill-refresh button).
+- **PR compatibility gate hardened**: new `required-ci` aggregator job gives
+  branch protection one stable required check that passes when the heavy
+  smoke is legitimately skipped on docs-only PRs.
+- Smoke-script cleanup is best-effort: a lingering esbuild daemon on Windows
+  can no longer turn a finished PASS into a crash.
+- Validated for real: 58 unit tests, real pull_request-event gate run, SemVer
+  and skill-integrity fixtures (details in docs/verification-report.md).
+
 ## 0.2.1 — 2026-09-01
 
 Stabilization release — correctness, single sources of truth, real validation

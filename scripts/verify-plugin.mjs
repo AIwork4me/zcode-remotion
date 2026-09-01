@@ -115,6 +115,11 @@ export async function verifyPlugin(root, { offline = false } = {}) {
           if (hardcoded) {
             errors.push('commands/remotion-update.md: hard-coded skill-name list detected — use compatibility/remotion.json skills.names');
           }
+          // Generic user-facing instructions must stay cross-platform:
+          // $(...) is Bash-only and silently breaks PowerShell/cmd users.
+          if (text.includes('$(')) {
+            errors.push('commands/remotion-update.md: shell-specific $() substitution detected — use a cross-platform command form');
+          }
         }
       } catch (err) {
         errors.push(`commands/${f}: ${err.message}`);

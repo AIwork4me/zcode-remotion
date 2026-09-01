@@ -23,10 +23,12 @@ project-local Remotion skills. Do not hand-edit package.json for the upgrade.
 
 Windows note (real-world finding): a STALE local CLI can fail with
 `spawn npm ENOENT` (older CLIs couldn't spawn npm on Windows). If that
-happens, run the upgrade through a CURRENT CLI instead of hand-upgrading:
+happens, run the upgrade through a CURRENT CLI instead of hand-upgrading —
+this form is cross-platform (no shell substitution, works in Bash,
+PowerShell and cmd):
 
 ```bash
-npx --yes --package=@remotion/cli@$(npm view remotion version) -- remotion upgrade
+npx --yes --package=@remotion/cli@latest -- remotion upgrade
 ```
 
 or drop to Case A2. `npx remotion versions` afterwards confirms either way.

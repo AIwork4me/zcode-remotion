@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml/badge.svg)](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.1-8b5cf6.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.2-8b5cf6.svg)](CHANGELOG.md)
 [![ZCode Plugin](https://img.shields.io/badge/ZCode-Plugin-22d3ee.svg)](https://zcode.z.ai/cn/docs/plugin)
 
 **一句话，从想法到 MP4。**
@@ -103,7 +103,7 @@ ZCode 会在安装后自动刷新插件能力。如果新技能或 `/remotion-*`
 
 | 症状 | 解法 |
 |---|---|
-| `npx skills add` 失败 | `node -v` ≥ 18，重试；离线回退方案见技能内说明 |
+| `npx skills add` 失败 | `node -v` ≥ 18、检查网络，重试；网络/缓存恢复阶梯见 remotion 技能内说明 |
 | Chrome/Chromium 下载失败 | 网络或代理拦截——见 [chrome-headless-shell 文档](https://www.remotion.dev/docs/chrome-headless-shell) |
 | `Could not find composition with ID …` | `<Composition id>` 必须与命令行参数一致 |
 | `delayRender() … timed out` | 每个 `delayRender` 都要有 `continueRender` |

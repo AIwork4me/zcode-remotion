@@ -49,7 +49,26 @@ const fail = () => {
 };
 
 let project = null;
-const cleanup = () => { if (project && existsSync(project)) { rmSync(project, { recursive: true, force: true }); } };
+// Best-effort cleanup. Windows: the esbuild daemon spawned by the Remotion CLI
+// can outlive the render and hold locks in the temp project (EPERM on rm).
+// Cleanup must NEVER turn a PASS into a crash — warn and keep the dir instead.
+const cleanup = () => {
+  if (!project || !existsSync(project)) return;
+  try {
+    rmSync(project, { recursive: true, force: true });
+  } catch {
+    console.warn(`smoke: warn — could not delete temp project (file lock, e.g. esbuild daemon): ${project}`);
+  }
+};
+const cleanupWithRetry = async () => {
+  if (!project || !existsSync(project)) return;
+  try {
+    rmSync(project, { recursive: true, force: true });
+  } catch {
+    await new Promise((r) => setTimeout(r, 1000));
+    cleanup();
+  }
+};
 
 const compat = JSON.parse(readFileSync(join(ROOT, 'compatibility', 'remotion.json'), 'utf8'));
 const REMOTION_V = compat.remotion.tested;
@@ -140,7 +159,7 @@ if (withMp4) {
 }
 
 console.log(`smoke: PASS — remotion@${REMOTION_V}, ${SKILL_NAMES.length} official skills @ ${SKILLS_V}, still ${still}`);
-if (!keep) cleanup();
+await cleanupWithRetry();
 
 function readdirCount(dir) {
   return readdirSync(dir).length;

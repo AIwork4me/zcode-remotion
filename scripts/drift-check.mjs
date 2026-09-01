@@ -22,7 +22,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { classifyDrift, validateManifest } from './compatibility.mjs';
+import { classifyDrift, validateManifest, compareSemver } from './compatibility.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST_PATH = join(ROOT, 'compatibility', 'remotion.json');
 const README_PATHS = [join(ROOT, 'README.md'), join(ROOT, 'README.zh-CN.md')];
@@ -118,6 +118,10 @@ if (write) {
     console.error('--write skipped: manifest already matches upstream');
   } else if (drift.added.length || drift.removed.length) {
     console.error('--write refused: skill topology changed — maintainer review required (high-risk drift)');
+    process.exit(1);
+  } else if (compareSemver(upstream.remotion, manifest.remotion.tested) < 0 ||
+             compareSemver(upstream.skillsVersion, manifest.skills.tested) < 0) {
+    console.error(`--write refused: UPSTREAM VERSION REGRESSION DETECTED (recorded ${manifest.remotion.tested}/${manifest.skills.tested}, observed ${upstream.remotion}/${upstream.skillsVersion}) — no automatic downgrade`);
     process.exit(1);
   } else {
     writeUpstream(manifest, upstream, new Date().toISOString().slice(0, 10));
