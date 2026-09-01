@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml/badge.svg)](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.4-8b5cf6.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.5-8b5cf6.svg)](CHANGELOG.md)
 [![ZCode Plugin](https://img.shields.io/badge/ZCode-Plugin-22d3ee.svg)](https://zcode.z.ai/cn/docs/plugin)
 
 **One prompt from idea to MP4.**
@@ -56,7 +56,7 @@ skills. We make them reliable inside ZCode.**
 | Render output verification | — | Yes |
 | `/remotion-doctor` | — | Yes |
 | Upstream compatibility monitoring | — | Yes (daily, with validated auto-PRs) |
-| ZCode real-client E2E evidence | — | Historical journey evidence; current CI compatibility evidence linked ([report](docs/verification-report.md)) |
+| ZCode real-client E2E evidence | — | Current-version steady-state ZCode E2E + clean-state CI compatibility evidence ([report](docs/verification-report.md)) |
 
 ## Install
 

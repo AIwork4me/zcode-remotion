@@ -45,23 +45,30 @@ jobs:
             fs.appendFileSync(out, 'upstream=' + (d.upstream ? d.upstream.remotion : 'unknown') + '\n');
           "
 
-      # ---- low-risk drift: rewrite baseline, then validate for real ----
+      # ---- low-risk drift: candidate baseline → validate → deliver ----
+      # Stages have stable IDs so failures classify correctly:
+      # candidate_write / static_validation / compat_validation = VALIDATION,
+      # pr_delivery = DELIVERY. A delivery failure is NOT a validation failure.
 
-      - name: Update recorded baseline
+      - name: Update recorded baseline (candidate)
+        id: candidate_write
         if: steps.drift.outputs.level == 'low'
         run: node scripts/drift-check.mjs --write
 
       - name: Static validation
+        id: static_validation
         if: steps.drift.outputs.level == 'low'
         run: |
           node --test scripts/verify-plugin.test.mjs
           node scripts/verify-plugin.mjs --offline
 
-      - name: Real Remotion smoke test at the new baseline
+      - name: Real Remotion smoke test at the new baseline (still + MP4)
+        id: compat_validation
         if: steps.drift.outputs.level == 'low'
         run: node scripts/compat-smoke.mjs --mp4
 
       - name: Open compatibility PR (never auto-merged)
+        id: pr_delivery
         if: steps.drift.outputs.level == 'low'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,23 +85,49 @@ jobs:
           git add compatibility/remotion.json README.md README.zh-CN.md
           git commit -m "$PR_TITLE"
           git push origin "$PR_BRANCH"
-          {
-            echo "Automated compatibility baseline update (validated by this workflow:"
-            echo "unit tests + offline verifier + real Remotion smoke render)."
-            echo
-            echo "Human checklist before merging:"
-            echo "- [ ] Skim https://github.com/remotion-dev/remotion/releases for user-facing changes in the crossed range"
-            echo "- [ ] Check the Mediabunny pairing still matches https://www.remotion.dev/docs/mediabunny/version"
-            echo "- [ ] Routing table still covers every recorded skill"
-            echo
-            echo "This PR is never merged automatically."
-          } > pr-body.md
+          node -e "
+            const fs = require('node:fs');
+            const d = JSON.parse(fs.readFileSync('./drift.json', 'utf8'));
+            const body = [
+              'Automated compatibility baseline update. Candidate state, validated by this workflow run:',
+              '',
+              'Candidate compatibility state:',
+              '',
+              'Remotion:        ' + d.upstream.remotion,
+              'official skills: ' + d.upstream.skills,
+              'Mediabunny:      ' + d.upstream.mediabunny + ' (official pairing, resolved from @remotion/media published metadata)',
+              'skill topology:  ' + d.upstream.skillNames.length,
+              '',
+              'Validation:',
+              '- official pairing lookup PASS (recorded pairing equals the independently resolved official pairing)',
+              '- unit/static PASS',
+              '- official skills bootstrap PASS',
+              '- Remotion versions consistency PASS',
+              '- still PASS',
+              '- MP4 PASS',
+              '',
+              'Human checklist before merging:',
+              '- [ ] Skim the upstream Remotion release notes (https://github.com/remotion-dev/remotion/releases) for user-facing/behavior changes in the crossed range',
+              '- [ ] Confirm nothing affects zcode-remotion\\'s orchestration assumptions',
+              '',
+              '**If this baseline PR is merged, publish a plugin patch release** so existing ZCode installs receive the new shipped compatibility state.',
+              '',
+              'This PR is never merged automatically.',
+            ].join('\\n');
+            fs.writeFileSync('pr-body.md', body);
+          "
           gh pr create --title "$PR_TITLE" --body-file pr-body.md --head "$PR_BRANCH" --base main
 
-      # ---- low-risk drift that failed validation ----
+      # ---- low-risk drift whose VALIDATION failed ----
+      # Tied to the validation steps specifically — a PR-creation/push/permission
+      # error must not be reported as a compatibility-validation failure
+      # (that misclassification created issue #8 on 2026-09-01).
 
       - name: Open validation-failed issue
-        if: failure() && steps.drift.outputs.level == 'low'
+        if: >-
+          failure() &&
+          steps.drift.outputs.level == 'low' &&
+          (steps.static_validation.outcome == 'failure' || steps.compat_validation.outcome == 'failure')
         uses: actions/github-script@v9
         with:
           script: |
@@ -108,7 +141,36 @@ jobs:
               title,
               body: 'Upstream Remotion ' + d.upstream.remotion + ' moved (baseline: ' + d.recorded.remotion +
                     '), but the compatibility validation run failed — maintainer review required.\n\n' +
-                    'See the workflow run for the failing step. Do not bump `compatibility/remotion.json` until this is resolved.'
+                    'See the workflow run for the failing validation step. Do not bump `compatibility/remotion.json` until this is resolved.'
+            });
+
+      # ---- low-risk drift whose VALIDATION passed but DELIVERY failed ----
+      # (branch push / PR creation / permissions). The candidate was proven
+      # compatible; only its delivery failed. Reported separately.
+
+      - name: Open delivery-failed issue
+        if: >-
+          failure() &&
+          steps.drift.outputs.level == 'low' &&
+          steps.static_validation.outcome == 'success' &&
+          steps.compat_validation.outcome == 'success'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('node:fs');
+            const d = JSON.parse(fs.readFileSync('./drift.json', 'utf8'));
+            const title = 'Compatibility PR delivery FAILED: Remotion ' + d.upstream.remotion;
+            const existing = await github.rest.issues.listForRepo({...context.repo, state: 'open'});
+            if (existing.data.some(i => i.title === title)) return;
+            await github.rest.issues.create({
+              ...context.repo,
+              title,
+              body: 'Compatibility validation PASSED for the candidate upstream state, but the validated baseline could not be delivered as a Pull Request.\n\n' +
+                    'Validation:\n' +
+                    '- static PASS\n- real still PASS\n- real MP4 PASS\n\n' +
+                    'Delivery failure occurred while creating/pushing/opening the PR.\n\n' +
+                    'The recorded main baseline has NOT been updated.\n' +
+                    'Review the workflow permissions / branch / PR creation error in the workflow run.'
             });
 
       # ---- high-risk drift: maintainer review required ----

@@ -30,12 +30,14 @@ const README_PATHS = [join(ROOT, 'README.md'), join(ROOT, 'README.zh-CN.md')];
 const SKILLS_RAW_PKG = 'https://raw.githubusercontent.com/remotion-dev/skills/main/package.json';
 const SKILLS_API_DIRS = 'https://api.github.com/repos/remotion-dev/skills/contents/skills';
 
-const npmView = async (pkg) => {
+const npmView = async (pkg, field = 'version') => {
   // exec (shell) is required on Windows: spawning npm.cmd via execFile throws
-  // EINVAL since the Node argv-injection fix. The argument is a literal below,
+  // EINVAL since the Node argv-injection fix. The arguments are literals below,
   // never user input.
-  if (!/^[@a-z0-9./-]+$/i.test(pkg)) throw new Error(`unsafe package name: ${pkg}`);
-  const { stdout } = await promisify(exec)(`npm view ${pkg} version`, { timeout: 60_000, windowsHide: true });
+  if (!/^[@a-z0-9./-]+$/i.test(pkg) || !/^[a-z0-9.]+$/i.test(field)) {
+    throw new Error(`unsafe npm view arguments: ${pkg} ${field}`);
+  }
+  const { stdout } = await promisify(exec)(`npm view ${pkg} ${field}`, { timeout: 60_000, windowsHide: true });
   return stdout.trim();
 };
 
@@ -56,10 +58,17 @@ const fetchJson = async (url, { withAuth = false } = {}) => {
 };
 
 export async function observeUpstream() {
-  const upstream = { remotion: null, skillsVersion: null, skillNames: null };
+  const upstream = { remotion: null, skillsVersion: null, skillNames: null, mediabunnyVersion: null };
   const failures = [];
   try { upstream.remotion = await npmView('remotion'); }
   catch (e) { failures.push(`npm view remotion version: ${e.message}`); }
+  // The official Mediabunny pairing is observed FROM the observed Remotion
+  // version (what this exact Remotion release officially declares) — never
+  // "latest mediabunny", and never independently of R.
+  if (upstream.remotion) {
+    try { upstream.mediabunnyVersion = await npmView(`@remotion/media@${upstream.remotion}`, 'dependencies.mediabunny'); }
+    catch (e) { failures.push(`official Mediabunny pairing lookup: ${e.message}`); }
+  }
   try { upstream.skillsVersion = (await fetchJson(SKILLS_RAW_PKG)).version; }
   catch (e) { failures.push(`skills package.json: ${e.message}`); }
   try {
@@ -81,6 +90,13 @@ export function writeUpstream(manifest, upstream, today, { manifestPath = MANIFE
       tested: upstream.skillsVersion,
       count: upstream.skillNames.length,
       names: [...upstream.skillNames].sort(),
+    },
+    // Root-cause fix (PR #9): the candidate baseline carries the OFFICIAL
+    // Mediabunny pairing observed for the candidate Remotion version — the
+    // previous pairing must never be silently preserved.
+    mediabunny: {
+      ...manifest.mediabunny,
+      tested: upstream.mediabunnyVersion,
     },
     verifiedAt: today,
   };
@@ -120,12 +136,13 @@ if (write) {
     console.error('--write refused: skill topology changed — maintainer review required (high-risk drift)');
     process.exit(1);
   } else if (compareSemver(upstream.remotion, manifest.remotion.tested) < 0 ||
-             compareSemver(upstream.skillsVersion, manifest.skills.tested) < 0) {
-    console.error(`--write refused: UPSTREAM VERSION REGRESSION DETECTED (recorded ${manifest.remotion.tested}/${manifest.skills.tested}, observed ${upstream.remotion}/${upstream.skillsVersion}) — no automatic downgrade`);
+             compareSemver(upstream.skillsVersion, manifest.skills.tested) < 0 ||
+             compareSemver(upstream.mediabunnyVersion, manifest.mediabunny?.tested) < 0) {
+    console.error(`--write refused: UPSTREAM VERSION REGRESSION DETECTED (recorded ${manifest.remotion.tested}/${manifest.skills.tested}/${manifest.mediabunny?.tested ?? 'n/a'}, observed ${upstream.remotion}/${upstream.skillsVersion}/${upstream.mediabunnyVersion}) — no automatic downgrade`);
     process.exit(1);
   } else {
     writeUpstream(manifest, upstream, new Date().toISOString().slice(0, 10));
-    console.log(`manifest + README updated to Remotion ${upstream.remotion} / skills ${upstream.skillsVersion}`);
+    console.log(`manifest + README updated to Remotion ${upstream.remotion} / skills ${upstream.skillsVersion} / mediabunny ${upstream.mediabunnyVersion}`);
   }
 }
 
@@ -133,10 +150,15 @@ if (json) {
   console.log(JSON.stringify({
     level: drift.level,
     reasons: drift.reasons,
-    recorded: { remotion: manifest.remotion.tested, skills: manifest.skills.tested },
+    recorded: {
+      remotion: manifest.remotion.tested,
+      skills: manifest.skills.tested,
+      mediabunny: manifest.mediabunny?.tested ?? null,
+    },
     upstream: drift.level === 'unknown' ? null : {
       remotion: upstream.remotion,
       skills: upstream.skillsVersion,
+      mediabunny: upstream.mediabunnyVersion,
       skillNames: upstream.skillNames,
     },
     prTitle: `chore(remotion): validate compatibility with ${drift.level === 'unknown' ? 'unknown' : upstream.remotion}`,
@@ -146,11 +168,11 @@ if (json) {
     failures,
   }, null, 2));
 } else {
-  console.log(`recorded : Remotion ${manifest.remotion.tested} / skills ${manifest.skills.tested} (${manifest.skills.count} skills)`);
+  console.log(`recorded : Remotion ${manifest.remotion.tested} / skills ${manifest.skills.tested} / mediabunny ${manifest.mediabunny?.tested ?? 'n/a'} (${manifest.skills.count} skills)`);
   if (drift.level === 'unknown') {
     console.log('upstream : unreadable');
   } else {
-    console.log(`upstream : Remotion ${upstream.remotion} / skills ${upstream.skillsVersion} (${upstream.skillNames.length} skills)`);
+    console.log(`upstream : Remotion ${upstream.remotion} / skills ${upstream.skillsVersion} / mediabunny ${upstream.mediabunnyVersion} (${upstream.skillNames.length} skills)`);
   }
   console.log(`drift    : ${drift.level}`);
   for (const r of drift.reasons) console.log(`  - ${r}`);

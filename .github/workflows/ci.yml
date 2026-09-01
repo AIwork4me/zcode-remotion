@@ -67,9 +67,10 @@ jobs:
           fi
 
   # Real Remotion validation at the recorded compatibility baseline:
-  # clean-state official-skills bootstrap, Mediabunny pairing, consistency
-  # check + still render. Heavy (downloads Chrome Headless Shell): always on
-  # main, and on PRs that touch behavior-relevant files (merge gate).
+  # clean-state official-skills bootstrap, official Mediabunny pairing check,
+  # consistency check + still and MP4 renders. Heavy (downloads Chrome
+  # Headless Shell): always on main, and on PRs that touch behavior-relevant
+  # files (merge gate).
   compat-smoke:
     needs: changes
     if: needs.changes.outputs.code == 'true'

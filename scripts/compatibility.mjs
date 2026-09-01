@@ -54,6 +54,43 @@ export function versionStatus(installed, latest) {
   return c < 0 ? 'outdated' : c === 0 ? 'current' : 'ahead';
 }
 
+// Resolves the Mediabunny version that Remotion <remotionVersion> OFFICIALLY
+// declares, from the published @remotion/media package metadata (the
+// authoritative pairing source — NOT "latest mediabunny"). Returns null when
+// the pairing cannot be determined; callers must fail closed and never reuse
+// a stale recorded value. (Network call; unit tests exercise checkPairing.)
+export async function resolveOfficialMediabunnyVersion(remotionVersion) {
+  if (typeof remotionVersion !== 'string' || !SEMVER_RE.test(remotionVersion)) return null;
+  try {
+    const { exec } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(exec)(`npm view @remotion/media@${remotionVersion} dependencies.mediabunny`, { timeout: 60_000, windowsHide: true });
+    const v = stdout.trim();
+    return SEMVER_RE.test(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+// Pure guard: the recorded pairing must equal the INDEPENDENTLY resolved
+// official pairing for the recorded Remotion version. Recording "some version
+// that installs fine" is self-consistency, not official compatibility.
+export function checkPairing(remotionVersion, recordedMediabunny, officialMediabunny) {
+  if (!officialMediabunny) {
+    return { ok: false, error: 'official Mediabunny pairing could not be resolved — refusing to call the recorded pairing official (fail closed)' };
+  }
+  if (typeof recordedMediabunny !== 'string' || !SEMVER_RE.test(recordedMediabunny)) {
+    return { ok: false, error: `compatibility manifest records no valid Mediabunny pairing for Remotion ${remotionVersion}` };
+  }
+  if (compareSemver(recordedMediabunny, officialMediabunny) !== 0) {
+    return {
+      ok: false,
+      error: `compatibility baseline pairing mismatch: Remotion ${remotionVersion} officially pairs with Mediabunny ${officialMediabunny}, but compatibility/remotion.json records ${recordedMediabunny}`,
+    };
+  }
+  return { ok: true, official: officialMediabunny };
+}
+
 // Validates compatibility/remotion.json. Returns a list of problems
 // (empty = valid). The manifest records the last VERIFIED upstream baseline;
 // it is the canonical machine-readable source for every version claim.
@@ -125,20 +162,28 @@ export const compareSkillNames = (recorded, upstream) => ({
 });
 
 // Classifies drift between the recorded baseline and freshly observed upstream
-// state. `upstream` = { remotion, skillsVersion, skillNames } (null fields mean
-// the observation failed). Levels:
-//   none    — identical versions and skill topology
-//   low     — version-only upward movement, same major, skill set unchanged
-//   high    — major bump, any skill added/removed/renamed, OR upstream moved
-//             BELOW the recorded baseline (version regression)
-//   unknown — upstream observation unusable (malformed/failed fetch)
+// state. `upstream` = { remotion, skillsVersion, skillNames, mediabunnyVersion }
+// (null/missing fields mean the observation failed). Levels:
+//   none    — identical versions, pairing and skill topology
+//   low     — version-only upward movement (incl. official Mediabunny pairing
+//             movement), same major, skill set unchanged
+//   high    — major bump, skill topology change, upstream below baseline, or
+//             official pairing below the recorded pairing (regression)
+//   unknown — upstream observation unusable, INCLUDING an undeterminable
+//             official Mediabunny pairing (fail closed: never reuse the old
+//             pairing and call the state current)
 export function classifyDrift(recorded, upstream) {
   const usable = upstream != null && typeof upstream === 'object' &&
     typeof upstream.remotion === 'string' && SEMVER_RE.test(upstream.remotion) &&
     typeof upstream.skillsVersion === 'string' && SEMVER_RE.test(upstream.skillsVersion) &&
     Array.isArray(upstream.skillNames) && upstream.skillNames.every((n) => typeof n === 'string' && n !== '');
-  if (!usable) {
-    return { level: 'unknown', reasons: ['upstream state unreadable or malformed — nothing to compare'] };
+  if (!usable || typeof upstream.mediabunnyVersion !== 'string' || !SEMVER_RE.test(upstream.mediabunnyVersion)) {
+    return {
+      level: 'unknown',
+      reasons: [!usable
+        ? 'upstream state unreadable or malformed — nothing to compare'
+        : 'official Mediabunny pairing for the observed Remotion version could not be determined — compatibility state unknown'],
+    };
   }
 
   const reasons = [];
@@ -152,6 +197,8 @@ export function classifyDrift(recorded, upstream) {
       `Recorded baseline: ${recordedV}\nObserved upstream: ${upstreamV}\n` +
       'No automatic downgrade will be proposed.');
   };
+
+  const recordedMb = recorded.mediabunny?.tested ?? null;
 
   let level = 'none';
   const remCmp = compareSemver(upstream.remotion, recorded.remotion.tested);
@@ -171,6 +218,18 @@ export function classifyDrift(recorded, upstream) {
     level = level === 'high' ? 'high'
       : majorOf(upstream.skillsVersion) !== majorOf(recorded.skills.tested) ? 'high' : 'low';
     reasons.push(`Official skills ${recorded.skills.tested} → ${upstream.skillsVersion}`);
+  }
+
+  const mbCmp = compareSemver(upstream.mediabunnyVersion, recordedMb);
+  if (mbCmp === null) {
+    level = 'low';
+    reasons.push(`Mediabunny pairing not recorded in the baseline; official pairing for Remotion ${upstream.remotion} is ${upstream.mediabunnyVersion}`);
+  } else if (mbCmp < 0) {
+    level = 'high';
+    regression('Mediabunny official pairing', recordedMb, upstream.mediabunnyVersion);
+  } else if (mbCmp > 0) {
+    level = level === 'high' ? 'high' : 'low';
+    reasons.push(`Mediabunny pairing ${recordedMb} → ${upstream.mediabunnyVersion}`);
   }
 
   if (added.length || removed.length) level = 'high';
