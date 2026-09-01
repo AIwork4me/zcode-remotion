@@ -157,10 +157,11 @@ as a merge gate. No new features.
 - **Actions runtime**: `actions/checkout` and `actions/setup-node` upgraded
   to v7 (Node-20 runtime deprecation warnings gone); Dependabot keeps GitHub
   Actions current (monthly).
-- **ZCode refresh guidance made docs-accurate and consistent**: ZCode
-  auto-refreshes plugin capabilities; toggling the plugin or starting a new
-  conversation is the fallback (current ZCode has no manual skill-refresh
-  button).
+- **ZCode refresh guidance made docs-accurate and consistent**: plugin
+  components auto-register; fallback guidance revised. (CORRECTED in v0.2.4:
+  this entry wrongly claimed ZCode has no manual skill-refresh button and
+  recommended plugin toggling — the official Skill docs document
+  Settings → Skills → Refresh for externally added skills.)
 - **Marketplace**: `strict: true` enabled (valid per the current ZCode
   marketplace spec); verifier validates the field shape.
 - **Repo metadata**: GitHub description de-hardcoded ("12 skills" removed),
