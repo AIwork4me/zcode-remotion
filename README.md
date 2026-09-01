@@ -124,7 +124,7 @@ Share your video in [GitHub Discussions → Show and tell](https://github.com/AI
 - Official Remotion skills: Copyright Remotion, Remotion License — free for individuals
   and companies ≤3 employees; larger companies need a license ([remotion.pro](https://www.remotion.pro))
 
-Tested against: Remotion `4.0.519` · official skills `4.0.519` — baseline tracked in
+Tested against: Remotion `4.0.520` · official skills `4.0.520` — baseline tracked in
 [compatibility/remotion.json](compatibility/remotion.json), verification evidence in
 [docs/verification-report.md](docs/verification-report.md).
 

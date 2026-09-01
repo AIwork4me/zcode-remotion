@@ -1,9 +1,9 @@
 {
   "remotion": {
-    "tested": "4.0.519"
+    "tested": "4.0.520"
   },
   "skills": {
-    "tested": "4.0.519",
+    "tested": "4.0.520",
     "count": 12,
     "names": [
       "remotion-best-practices",
