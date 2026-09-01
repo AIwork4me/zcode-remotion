@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.2.1 — 2026-09-01
+
+Stabilization release — correctness, single sources of truth, real validation
+as a merge gate. No new features.
+
+- **Canonical ZCode skill discovery**: official skills are detected in all
+  valid locations — project `.zcode/skills/`, ZCode-native user
+  `~/.zcode/skills/`, installer user `~/.agents/skills/`. Skills present only
+  under `~/.zcode/skills` are no longer treated as missing (no wrongful
+  reinstall). Path logic extracted and unit-tested (`scripts/skill-paths.mjs`).
+- **Honest offline behavior**: the impossible "offline → download from GitHub"
+  fallback is replaced by a real fallback ladder: installer fails → fetch
+  directly from the official repo if the network is reachable → use a cached
+  copy if truly offline → report honest failure otherwise. The requested scope
+  is never silently switched.
+- **Doctor separates Remotion and skills versions**: each artifact is compared
+  against its OWN upstream source (`npm view remotion version` for the
+  package; official remotion-dev/skills package metadata for skills). Skills
+  are never flagged outdated just because the Remotion package moved; an
+  unreadable source reports "unknown", never a false claim.
+- **Single source of truth for the skill list**: `/remotion-update` now reads
+  `skills.names` from `compatibility/remotion.json` (helper:
+  `scripts/skill-names.mjs`); the verifier fails if the update command
+  hard-codes a name list or drops the manifest reference, so a newly recorded
+  upstream skill can't be silently omitted from updates.
+- **PR merge gate**: the real compatibility smoke now runs on pull requests
+  that touch behavior-relevant files (skills/commands/scripts/compatibility/
+  manifests/workflows) — compatibility failures surface before merge, not on
+  main. Docs-only changes skip the heavy render.
+- **Mediabunny in the smoke**: the recorded Remotion + Mediabunny pairing is
+  installed and consistency-checked in every compatibility smoke run.
+- **Trustworthy upstream monitoring**: `drift-check` authenticates GitHub API
+  calls with `GITHUB_TOKEN` when available; unreadable upstream now emits a
+  workflow warning + step summary that state compatibility was NOT checked —
+  visible, but no noisy issues.
+- **Actions runtime**: `actions/checkout` and `actions/setup-node` upgraded
+  to v7 (Node-20 runtime deprecation warnings gone); Dependabot keeps GitHub
+  Actions current (monthly).
+- **ZCode refresh guidance made docs-accurate and consistent**: ZCode
+  auto-refreshes plugin capabilities; toggling the plugin or starting a new
+  conversation is the fallback (current ZCode has no manual skill-refresh
+  button).
+- **Marketplace**: `strict: true` enabled (valid per the current ZCode
+  marketplace spec); verifier validates the field shape.
+- **Repo metadata**: GitHub description de-hardcoded ("12 skills" removed),
+  topics corrected (`claude-plugin` → `zcode-plugin`/`agent-skills`).
+- **Release hygiene**: `scripts/release-check.mjs` detects drift between
+  plugin.json, CHANGELOG and (optionally, when `gh` is authenticated) the
+  latest GitHub release tag; stale "unpublished repo" / internal-spec
+  references removed from contributor docs.
+- Real validation: update flow re-verified end-to-end on an outdated 4.0.513
+  project; documented Windows finding — stale CLIs can fail
+  `npx remotion upgrade` with `spawn npm ENOENT`; run the upgrade through a
+  current CLI (`npx --yes --package=@remotion/cli@<target> -- remotion
+  upgrade`) or use the manual fallback. Compat smoke (with Mediabunny) and
+  MP4 render pass; 47 unit tests green.
+
 ## 0.2.0 — 2026-09-01
 
 - **Upstream compatibility governance**: new machine-readable baseline

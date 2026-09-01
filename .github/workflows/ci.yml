@@ -21,8 +21,8 @@ jobs:
             node: 22
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ matrix.node }}" }
       - run: node --test scripts/verify-plugin.test.mjs
       - run: node scripts/verify-plugin.mjs --offline
@@ -31,19 +31,44 @@ jobs:
   online-verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 24 }
       - run: node scripts/verify-plugin.mjs
 
+  # PR merge gate: run the real compatibility smoke when behavior-relevant
+  # files change, so Remotion compatibility failures surface BEFORE merge,
+  # not on main. Docs/README-only changes skip the heavy Chrome render.
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git diff --name-only "$BASE_SHA"...HEAD | grep -qE '^(skills/|commands/|scripts/|compatibility/|\.zcode-plugin/|marketplace\.json|\.github/workflows/)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "behavior-relevant changes detected — compat-smoke will run"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "docs-only change — compat-smoke skipped"
+          fi
+
   # Real Remotion validation at the recorded compatibility baseline:
-  # clean-state official-skills bootstrap + consistency check + still render.
-  # Heavy (downloads Chrome Headless Shell), so it runs once on main.
+  # clean-state official-skills bootstrap, Mediabunny pairing, consistency
+  # check + still render. Heavy (downloads Chrome Headless Shell): always on
+  # main, and on PRs that touch behavior-relevant files (merge gate).
   compat-smoke:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 24 }
       - run: node scripts/compat-smoke.mjs

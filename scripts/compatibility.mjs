@@ -69,6 +69,16 @@ export function checkRouterCoverage(names, routingText) {
   return (names ?? []).filter((n) => typeof n === 'string' && !routingText.includes(n));
 }
 
+// Compares an installed artifact version against ITS OWN upstream source.
+// Anything unreadable/malformed → 'unknown' (never a false 'outdated').
+// Used separately for the remotion package and the skills package — a version
+// difference between the two artifacts is normal, not an error.
+export function versionStatus(installed, latest) {
+  if (typeof installed !== 'string' || !SEMVER_RE.test(installed)) return 'unknown';
+  if (typeof latest !== 'string' || !SEMVER_RE.test(latest)) return 'unknown';
+  return installed === latest ? 'current' : 'outdated';
+}
+
 const majorOf = (v) => Number.parseInt(String(v).split('.')[0], 10);
 
 export const compareSkillNames = (recorded, upstream) => ({

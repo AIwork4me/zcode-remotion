@@ -39,8 +39,18 @@ const npmView = async (pkg) => {
   return stdout.trim();
 };
 
-const fetchJson = async (url) => {
-  const res = await fetch(url, { headers: { 'user-agent': 'zcode-remotion-drift-check' } });
+// Authorization for GitHub API requests when a token is available (GitHub
+// Actions sets GITHUB_TOKEN). Exported for unit tests; the token is only ever
+// placed in the Authorization header, never logged.
+export function githubApiHeaders(env = process.env) {
+  const headers = { 'user-agent': 'zcode-remotion-drift-check' };
+  if (env.GITHUB_TOKEN) headers.authorization = `Bearer ${env.GITHUB_TOKEN}`;
+  return headers;
+}
+
+const fetchJson = async (url, { withAuth = false } = {}) => {
+  const headers = withAuth ? githubApiHeaders() : { 'user-agent': 'zcode-remotion-drift-check' };
+  const res = await fetch(url, { headers });
   if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
   return res.json();
 };
@@ -53,7 +63,7 @@ export async function observeUpstream() {
   try { upstream.skillsVersion = (await fetchJson(SKILLS_RAW_PKG)).version; }
   catch (e) { failures.push(`skills package.json: ${e.message}`); }
   try {
-    const entries = await fetchJson(SKILLS_API_DIRS);
+    const entries = await fetchJson(SKILLS_API_DIRS, { withAuth: true });
     upstream.skillNames = entries.filter((e) => e.type === 'dir').map((e) => e.name);
   } catch (e) { failures.push(`skills listing: ${e.message}`); }
   return { upstream, failures };

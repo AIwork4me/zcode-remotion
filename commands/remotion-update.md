@@ -21,6 +21,16 @@ npx remotion upgrade
 This is the official upgrader — it aligns all Remotion packages AND updates
 project-local Remotion skills. Do not hand-edit package.json for the upgrade.
 
+Windows note (real-world finding): a STALE local CLI can fail with
+`spawn npm ENOENT` (older CLIs couldn't spawn npm on Windows). If that
+happens, run the upgrade through a CURRENT CLI instead of hand-upgrading:
+
+```bash
+npx --yes --package=@remotion/cli@$(npm view remotion version) -- remotion upgrade
+```
+
+or drop to Case A2. `npx remotion versions` afterwards confirms either way.
+
 **Case A2 — `@remotion/cli` is NOT installed** (manual path, exactly as the
 official `remotion-upgrade` skill prescribes):
 
@@ -38,10 +48,14 @@ official `remotion-upgrade` skill prescribes):
 
 ## Part B — Refresh official Remotion skills
 
-Update the installed skills by name (official mechanism):
+Update the installed skills by name, from the ONE canonical list: the
+`skills.names` array in `compatibility/remotion.json` (shipped in this plugin's
+repository/cache; `node scripts/skill-names.mjs` prints it). Never use a
+memorized list — a skill recorded in the manifest must never be silently
+omitted from the update:
 
 ```bash
-npx skills update remotion-best-practices remotion-captions remotion-create remotion-docs remotion-interactivity remotion-maps remotion-markup remotion-multimedia remotion-render remotion-saas remotion-studio remotion-upgrade --yes
+npx skills update <every name from compatibility/remotion.json skills.names> --yes
 ```
 
 Scope flags: inside a project with project-scope skills add `-p`; for user-scope

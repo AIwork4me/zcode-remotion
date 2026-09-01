@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml/badge.svg)](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.0-8b5cf6.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.1-8b5cf6.svg)](CHANGELOG.md)
 [![ZCode Plugin](https://img.shields.io/badge/ZCode-Plugin-22d3ee.svg)](https://zcode.z.ai/cn/docs/plugin)
 
 **One prompt from idea to MP4.**

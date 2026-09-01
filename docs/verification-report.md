@@ -1,5 +1,57 @@
 # Verification Report — remotion ZCode plugin
 
+## 0.2.1 stabilization run — 2026-09-01 — PASS
+
+OS: Windows 10 (10.0.26200) · Node v24.14.1. Same discipline as 0.2.0: every
+command below was executed for real.
+
+### Upstream state (re-detected live)
+
+- `npm view remotion version` → **4.0.519** · remotion-dev/skills package.json → **4.0.519**
+- Skill names via GitHub API → **12** (unchanged) · `drift: none`
+
+### Phase validations (real)
+
+- **Skill-path detection** (`scripts/skill-paths.mjs`, unit-tested): only
+  `~/.zcode/skills` → detected; only `~/.agents/skills` → detected; project
+  `.zcode/skills` → detected; none → bootstrap required. Real fixture run with
+  a temp HOME confirmed the canonical `~/.zcode/skills` path is honored.
+- **Doctor, 4 scenarios (real)**: valid project @4.0.519 (= latest, current);
+  non-project dir (N/A); outdated project @4.0.500 (→ /remotion-update);
+  outdated-skills fixture (fake home, frontmatter 4.0.400 vs skills source
+  4.0.519 → "outdated" via its OWN source, not npm's).
+- **Update flow (real, Windows finding)**: project @4.0.513 → `npx remotion
+  upgrade` (local CLI 4.0.513) FAILS on Windows with `spawn npm ENOENT` — the
+  stale CLI's own spawn bug. Running through a current CLI
+  (`npx --yes --package=@remotion/cli@4.0.519 -- remotion upgrade`) succeeds:
+  all packages → 4.0.519, `npx remotion versions` → "All packages have the
+  correct version", lockfile consistent. Documented in /remotion-update.
+- **Compat smoke (real ×2)**: `node scripts/compat-smoke.mjs` → PASS
+  (remotion@4.0.519 + mediabunny@1.55.4 installed, `npm ls` pair-consistent,
+  12 skills @4.0.519 bootstrapped, still 41,565 B); `--mp4` → PASS (MP4
+  rendered). Mediabunny pairing now validated on every run.
+- **Single-source skill list (real)**: `node scripts/skill-names.mjs` prints
+  exactly the manifest list; verifier now fails an update command that
+  hard-codes names or drops the manifest reference (regression-tested).
+- **Release check (real)**: local PASS (0.2.1 == CHANGELOG); `--github`
+  correctly reports GitHub latest v0.1.0 older than plugin version → publish
+  pending.
+
+### Final gate (0.2.1)
+
+- `node --test scripts/verify-plugin.test.mjs` → **47/47 pass** (new: skill
+  paths ×5, versionStatus ×2, auth headers, skill-names helper, update-command
+  regressions ×2, strict-shape)
+- offline verify PASS · online verify PASS · drift-check `none` ·
+  ci.yml + drift-check.yml + dependabot.yml parse clean (yaml@2)
+- Actions upgraded to checkout@v7 / setup-node@v7; CI re-run after push —
+  all jobs green, Node-20 runtime deprecation warnings gone (see run linked
+  in the release)
+- No vendored upstream skills, no placeholders, no secrets, no temp output
+  committed
+
+---
+
 ## 0.2.0 compatibility run — 2026-09-01 — PASS
 
 OS: Windows 10 (10.0.26200) · Node v24.14.1. All commands below were executed for real

@@ -55,6 +55,7 @@ const compat = JSON.parse(readFileSync(join(ROOT, 'compatibility', 'remotion.jso
 const REMOTION_V = compat.remotion.tested;
 const SKILLS_V = compat.skills.tested;
 const SKILL_NAMES = compat.skills.names;
+const MEDIABUNNY_V = compat.mediabunny?.tested ?? null;
 
 const SRC = {
   'src/index.ts': `import { registerRoot } from 'remotion';\nimport { RemotionRoot } from './Root';\n\nregisterRoot(RemotionRoot);\n`,
@@ -64,19 +65,31 @@ const SRC = {
 
 process.on('exit', () => { if (!keep) cleanup(); });
 
-// 1. fresh project at the recorded baseline version
+// 1. fresh project at the recorded baseline version (+ recorded Mediabunny pair)
 project = mkdtempSync(join(tmpdir(), 'compat-smoke-'));
-await step('fresh project at remotion@' + REMOTION_V, async ({ timeout }) => {
+await step('fresh project at remotion@' + REMOTION_V + (MEDIABUNNY_V ? ` + mediabunny@${MEDIABUNNY_V}` : ''), async ({ timeout }) => {
   writeFileSync(join(project, 'package.json'), JSON.stringify({
     name: 'compat-smoke', version: '1.0.0', private: true,
   }));
-  const { stdout } = await run(`npm i --save-exact --no-audit --no-fund remotion@${REMOTION_V} @remotion/cli@${REMOTION_V} react react-dom`, { cwd: project, timeout, windowsHide: true });
+  const media = MEDIABUNNY_V ? ` @remotion/media-utils@${REMOTION_V} mediabunny@${MEDIABUNNY_V}` : '';
+  const { stdout } = await run(`npm i --save-exact --no-audit --no-fund remotion@${REMOTION_V} @remotion/cli@${REMOTION_V}${media} react react-dom`, { cwd: project, timeout, windowsHide: true });
   mkdirSync(join(project, 'src'), { recursive: true });
   for (const [name, content] of Object.entries(SRC)) {
     writeFileSync(join(project, name), content);
   }
   return stdout.split('\n').slice(-2).join(' | ');
 }, { timeout: 600_000 });
+
+// 1b. the recorded Remotion + Mediabunny pair must coexist without conflicts
+if (MEDIABUNNY_V) {
+  await step(`consistency: remotion@${REMOTION_V} + mediabunny@${MEDIABUNNY_V}`, async ({ timeout }) => {
+    const { stdout } = await run('npm ls remotion @remotion/cli @remotion/media-utils mediabunny --depth=0', { cwd: project, timeout, windowsHide: true });
+    for (const [pkg, v] of [['remotion', REMOTION_V], ['@remotion/media-utils', REMOTION_V], ['mediabunny', MEDIABUNNY_V]]) {
+      if (!stdout.includes(`${pkg}@${v}`)) throw new Error(`npm ls missing ${pkg}@${v}:\n${stdout.slice(0, 400)}`);
+    }
+    return 'pair coexists, single versions resolved';
+  });
+}
 
 // 2. bootstrap official skills from a clean state (project scope)
 await step(`bootstrap official skills (expect ${SKILL_NAMES.length}, v${SKILLS_V})`, async ({ timeout }) => {

@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseFrontmatter, verifyPlugin, extractUrls } from './verify-plugin.mjs';
-import { validateManifest, classifyDrift, checkRouterCoverage } from './compatibility.mjs';
-import { writeUpstream } from './drift-check.mjs';
+import { validateManifest, classifyDrift, checkRouterCoverage, versionStatus } from './compatibility.mjs';
+import { writeUpstream, githubApiHeaders } from './drift-check.mjs';
+import { detectSkillInstall, countOfficialSkills, ROUTER_SKILL } from './skill-paths.mjs';
+
+const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 
 const V = '0.1.0';
 // Router text mentions every fixture manifest skill → routing coverage holds.
@@ -327,4 +332,126 @@ test('writeUpstream rewrites manifest + both READMEs deterministically', () => {
   assert.ok(readFileSync(readmeEn, 'utf8').includes('Remotion `4.0.520` · official skills `4.0.520`'));
   assert.ok(readFileSync(readmeZh, 'utf8').includes('Remotion `4.0.520` · 官方技能 `4.0.520`'));
   rmSync(root, { recursive: true, force: true });
+});
+
+// --- canonical ZCode skill-path detection (scripts/skill-paths.mjs) ---
+
+const fakeSkillInstall = (root, location) => {
+  const targets = {
+    project: join(root, 'repo', '.zcode', 'skills', ROUTER_SKILL),
+    zcode: join(root, 'home', '.zcode', 'skills', ROUTER_SKILL),
+    agents: join(root, 'home', '.agents', 'skills', ROUTER_SKILL),
+  };
+  mkdirSync(targets[location], { recursive: true });
+  writeFileSync(join(targets[location], 'SKILL.md'), '---\nname: x\n---\n');
+  return { project: join(root, 'repo'), home: join(root, 'home') };
+};
+
+test('skill detection: only ~/.zcode/skills counts as installed (canonical path)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-paths-'));
+  const { project, home } = fakeSkillInstall(root, 'zcode');
+  assert.deepEqual(detectSkillInstall({ projectRoot: project, home }), { scope: 'user', dir: join(home, '.zcode', 'skills') });
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('skill detection: only ~/.agents/skills counts as installed', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-paths-'));
+  const { project, home } = fakeSkillInstall(root, 'agents');
+  assert.deepEqual(detectSkillInstall({ projectRoot: project, home }), { scope: 'user', dir: join(home, '.agents', 'skills') });
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('skill detection: project scope wins when present', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-paths-'));
+  const { project, home } = fakeSkillInstall(root, 'project');
+  const d = detectSkillInstall({ projectRoot: project, home });
+  assert.equal(d.scope, 'project');
+  assert.ok(d.dir.endsWith(join('.zcode', 'skills')));
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('skill detection: none installed means bootstrap required', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-paths-'));
+  mkdirSync(join(root, 'home'), { recursive: true });
+  assert.deepEqual(detectSkillInstall({ projectRoot: join(root, 'repo'), home: join(root, 'home') }), { scope: 'none', dir: null });
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('countOfficialSkills counts only remotion-* dirs with SKILL.md', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-count-'));
+  const dir = join(root, 'skills');
+  for (const n of ['remotion-a', 'remotion-b', 'other', 'remotion-empty']) {
+    mkdirSync(join(dir, n), { recursive: true });
+    if (n !== 'remotion-empty') writeFileSync(join(dir, n, 'SKILL.md'), 'x');
+  }
+  writeFileSync(join(dir, 'README.md'), 'x');
+  assert.equal(countOfficialSkills(dir), 2);
+  assert.equal(countOfficialSkills(join(root, 'missing')), 0);
+  rmSync(root, { recursive: true, force: true });
+});
+
+// --- doctor version logic: each artifact vs its OWN source ---
+
+test('versionStatus: both current / remotion-only / skills-only / both differ', () => {
+  assert.equal(versionStatus('4.0.519', '4.0.519'), 'current');
+  assert.equal(versionStatus('4.0.513', '4.0.519'), 'outdated'); // remotion outdated only
+  assert.equal(versionStatus('4.0.519', '4.0.520'), 'outdated'); // skills outdated only (its own source)
+  assert.equal(versionStatus('4.0.500', '4.1.0'), 'outdated');   // both, intentionally different
+});
+
+test('versionStatus: unavailable upstream source is unknown, never "outdated"', () => {
+  for (const bad of [null, undefined, '', 'unknown', '4.0']) {
+    assert.equal(versionStatus('4.0.519', bad), 'unknown');
+    assert.equal(versionStatus(bad, '4.0.519'), 'unknown');
+  }
+});
+
+// --- authenticated upstream observation ---
+
+test('githubApiHeaders: no token → no auth header; token → Bearer, never logged elsewhere', () => {
+  assert.deepEqual(githubApiHeaders({}), { 'user-agent': 'zcode-remotion-drift-check' });
+  const h = githubApiHeaders({ GITHUB_TOKEN: 'tok-123' });
+  assert.equal(h.authorization, 'Bearer tok-123');
+  assert.equal(Object.keys(h).length, 2);
+});
+
+// --- single-source skill list (scripts/skill-names.mjs) ---
+
+test('skill-names helper prints exactly the manifest skill list', () => {
+  const out = execFileSync(process.execPath, [join(SCRIPTS_DIR, 'skill-names.mjs')], { encoding: 'utf8' });
+  const manifest = JSON.parse(readFileSync(join(SCRIPTS_DIR, '..', 'compatibility', 'remotion.json'), 'utf8'));
+  assert.equal(out.trim(), manifest.skills.names.join(' '));
+  const count = execFileSync(process.execPath, [join(SCRIPTS_DIR, 'skill-names.mjs'), '--count'], { encoding: 'utf8' });
+  assert.equal(Number(count.trim()), manifest.skills.names.length);
+});
+
+test('update command regression: missing manifest reference is flagged', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'verify-plugin-'));
+  makePlugin(root);
+  writeFileSync(join(root, 'commands', 'remotion-update.md'),
+    '---\ndescription: u\n---\nnpx skills update remotion-best-practices remotion-create remotion-render --yes\n');
+  const { errors } = await verifyPlugin(root, { offline: true });
+  rmSync(root, { recursive: true, force: true });
+  assert.ok(errors.some((e) => e.includes('remotion-update.md') && e.includes('compatibility/remotion.json')));
+});
+
+test('update command regression: hard-coded skill list is flagged', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'verify-plugin-'));
+  makePlugin(root);
+  writeFileSync(join(root, 'commands', 'remotion-update.md'),
+    '---\ndescription: u\n---\nRead compatibility/remotion.json then: npx skills update remotion-best-practices remotion-create remotion-render --yes\n');
+  const { errors } = await verifyPlugin(root, { offline: true });
+  rmSync(root, { recursive: true, force: true });
+  assert.ok(errors.some((e) => e.includes('remotion-update.md') && e.includes('hard-coded')));
+});
+
+test('marketplace entry: strict must be boolean, true is accepted', async () => {
+  const ok = await withTempPlugin({
+    marketplaceJson: { name: 'm', plugins: [{ name: 'remotion', source: './', version: V, strict: true }] },
+  });
+  assert.deepEqual(ok.errors, []);
+  const bad = await withTempPlugin({
+    marketplaceJson: { name: 'm', plugins: [{ name: 'remotion', source: './', version: V, strict: 'yes' }] },
+  });
+  assert.ok(bad.errors.some((e) => e.includes('strict')));
 });

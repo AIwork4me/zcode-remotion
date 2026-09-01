@@ -102,8 +102,20 @@ export async function verifyPlugin(root, { offline = false } = {}) {
         errors.push(`commands/${f}: filename violates ZCode command naming`);
       }
       try {
-        const { data } = parseFrontmatter(readFileSync(join(commandsRoot, f), 'utf8'));
+        const text = readFileSync(join(commandsRoot, f), 'utf8');
+        const { data } = parseFrontmatter(text);
         if (!data.description) errors.push(`commands/${f}: description frontmatter missing`);
+        // Single source of truth: the update flow must consume
+        // compatibility/remotion.json, never a memorized skill list.
+        if (f === 'remotion-update.md') {
+          if (!text.includes('compatibility/remotion.json')) {
+            errors.push('commands/remotion-update.md: must read skill names from compatibility/remotion.json (single source of truth)');
+          }
+          const hardcoded = text.match(/remotion-[a-z]+.*remotion-[a-z]+.*remotion-[a-z]+/);
+          if (hardcoded) {
+            errors.push('commands/remotion-update.md: hard-coded skill-name list detected — use compatibility/remotion.json skills.names');
+          }
+        }
       } catch (err) {
         errors.push(`commands/${f}: ${err.message}`);
       }
@@ -127,6 +139,9 @@ export async function verifyPlugin(root, { offline = false } = {}) {
       }
       if (entry.tags != null && (!Array.isArray(entry.tags) || entry.tags.some((t) => typeof t !== 'string' || !t))) {
         errors.push('marketplace.json: tags must be an array of non-empty strings');
+      }
+      if (entry.strict != null && typeof entry.strict !== 'boolean') {
+        errors.push('marketplace.json: strict must be a boolean');
       }
     }
   }

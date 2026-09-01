@@ -23,12 +23,14 @@ jobs:
   compatibility:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 24 }
 
       - name: Observe upstream and classify drift
         id: drift
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           node scripts/drift-check.mjs --json > drift.json
           cat drift.json
@@ -138,5 +140,13 @@ jobs:
       - name: Report unknown upstream state
         if: steps.drift.outputs.level == 'unknown'
         run: |
-          echo "Upstream state unreadable (npm/GitHub hiccup or rate limit) — skipping this run."
-          echo "No compatibility claim was made and no issue was opened (transient failures must not create issue spam)."
+          echo "::warning::Upstream compatibility NOT checked successfully — npm/GitHub was unreadable (hiccup or rate limit). No compatibility claim was made; no issue was opened (transient failures must not create issue spam). Re-run the workflow or check manually with: node scripts/drift-check.mjs"
+          {
+            echo "## ⚠️ Upstream compatibility check did not run"
+            echo
+            echo "The upstream state (npm registry / remotion-dev/skills) could not be observed, so"
+            echo "**compatibility was NOT verified** in this scheduled run. Recorded baseline: \`compatibility/remotion.json\`."
+            echo
+            echo "This is a monitoring failure, not a detected incompatibility. Re-run the workflow or check manually:"
+            echo "\`node scripts/drift-check.mjs\`"
+          } >> "$GITHUB_STEP_SUMMARY"

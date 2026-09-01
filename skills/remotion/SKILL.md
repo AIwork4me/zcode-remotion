@@ -4,7 +4,7 @@ description: "Remotion video workflow for ZCode: scaffold projects, write React 
 license: MIT
 metadata:
   author: ZCode Remotion Plugin Contributors
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # Remotion Workflow — ZCode Integration Layer
@@ -22,12 +22,14 @@ territory — route to the official `remotion-multimedia` skill after bootstrap.
 
 ## 1. Bootstrap gate (always run first)
 
-Check whether official skills are installed:
+Check whether official skills are installed (any ONE of these means installed —
+do not reinstall merely because one location is missing):
 
 - Project scope: `<repo>/.zcode/skills/remotion-best-practices/SKILL.md`
-- User scope: `~/.agents/skills/remotion-best-practices/SKILL.md`
+- User scope, ZCode-native path: `~/.zcode/skills/remotion-best-practices/SKILL.md`
+- User scope, installer path: `~/.agents/skills/remotion-best-practices/SKILL.md`
 
-If NEITHER exists, bootstrap now (never silently skip, never proceed without):
+If NONE exists, bootstrap now (never silently skip, never proceed without):
 
 ```bash
 npx -y skills add remotion-dev/skills -s '*' -y --copy -g
@@ -45,26 +47,39 @@ npx -y skills add remotion-dev/skills -s '*' -y --copy -g
   wrappers around the official installer).
 - Tell the user the skills were installed by the official Remotion installer and
   are licensed by Remotion (see NOTICE in the plugin repo).
-- If the user is offline or `npx` fails, fall back: download the official skill
-  folders from https://github.com/remotion-dev/skills into `.zcode/skills/` —
-  user-side fetch from the official repo, never vendored by this plugin.
 
-**Verify (mandatory, after the installer OR the manual fallback):** confirm on
-disk that the file actually exists — `.zcode/skills/remotion-best-practices/SKILL.md`
-(project scope) or `~/.agents/skills/remotion-best-practices/SKILL.md` (user
-scope) — before proceeding. Do not rely on the installer's exit code or console
-output alone; check the filesystem.
+**If the official installer fails, preserve the requested scope and be honest
+about what is possible:**
+
+```text
+official installer fails
+│
+├─ network / GitHub still reachable
+│    └─ fetch the skill folders directly from the official
+│       https://github.com/remotion-dev/skills into the REQUESTED scope
+│       directory (user scope → ~/.zcode/skills/; project scope → .zcode/skills/)
+│
+└─ truly offline
+     ├─ use an already-installed/cached copy of the official skills if one exists
+     └─ otherwise say so plainly: official skills cannot be installed right now
+```
+
+Never convert a failed user-scope install into a project-scope install (or the
+reverse) without asking. **Verify (mandatory, every path):** confirm on disk
+that `remotion-best-practices/SKILL.md` actually exists in the requested scope
+before proceeding. Do not rely on the installer's exit code or console output
+alone; check the filesystem.
 
 > **Never report that skills/components were installed without verifying the files
-> exist on disk.** If the installer produced nothing, say so and use the manual
-> download fallback (fetch the official skill folders from
-> https://github.com/remotion-dev/skills into the scope directory); if that also
-> fails, report failure honestly and continue using your own knowledge while
-> telling the user the official skills are missing.
+> exist on disk.** If nothing could be installed, report failure honestly and
+> continue using your own knowledge while telling the user the official skills
+> are missing.
 
-After bootstrap, the official skills appear as `remotion-*` skills/commands in a
-NEW session. Within the current session, read the installed SKILL.md files
-directly when you need their guidance.
+After bootstrap, the official skills appear as `remotion-*` skills/commands.
+ZCode picks up skills at session spawn and refreshes plugin capabilities
+automatically; if they are not visible in the `/` menu, toggle the plugin
+off/on or start a new conversation. Within the CURRENT session, read the
+installed SKILL.md files directly when you need their guidance.
 
 ## 2. Environment pre-flight (before create/render)
 
@@ -111,7 +126,7 @@ https://www.remotion.dev/docs/ai/skills.
 
 | Symptom | Likely cause | Action |
 |---|---|---|
-| `npx skills add` fails | Node missing/old, network | Check `node -v`; retry; offline fallback in §1 |
+| `npx skills add` fails | Node missing/old, network | Check `node -v`; retry; fallback ladder in §1 |
 | Chrome/Chromium download failure | Network or proxy blocks storage.googleapis.com | Retry; see https://www.remotion.dev/docs/chrome-headless-shell; /remotion-doctor |
 | `Error: Could not find composition with ID <id>. Available compositions: ...` | Root not registering composition | Check `registerRoot` and `<Composition id=...>` match the CLI arg |
 | `delayRender() ... timed out` | Unresolved handle | Ensure every `delayRender` has `continueRender`; avoid unawaited promises in `calculateMetadata` |
