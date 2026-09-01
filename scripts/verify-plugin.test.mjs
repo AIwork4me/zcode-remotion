@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFrontmatter, verifyPlugin, extractUrls } from './verify-plugin.mjs';
-import { validateManifest, classifyDrift, checkRouterCoverage, versionStatus } from './compatibility.mjs';
+import { validateManifest, classifyDrift, checkRouterCoverage, versionStatus, compareSemver } from './compatibility.mjs';
 import { writeUpstream, githubApiHeaders } from './drift-check.mjs';
-import { detectSkillInstall, countOfficialSkills, ROUTER_SKILL } from './skill-paths.mjs';
+import { inspectSkillInstall, loadExpectedSkillNames, ROUTER_SKILL } from './skill-paths.mjs';
 
 const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 
@@ -300,6 +300,27 @@ test('drift: major Remotion bump is high-risk even with same topology', () => {
   assert.equal(d.level, 'high');
 });
 
+test('drift: upstream BELOW recorded baseline is a high-risk regression, never a downgrade PR', () => {
+  for (const over of [
+    { remotion: '4.0.518', skillsVersion: '4.0.519' },
+    { remotion: '4.0.519', skillsVersion: '4.0.513' },
+    { remotion: '4.0.100', skillsVersion: '4.0.100' }, // big regression
+  ]) {
+    const d = classifyDrift(recorded, upstreamOf(over));
+    assert.equal(d.level, 'high');
+    const reg = d.reasons.find((r) => r.includes('UPSTREAM VERSION REGRESSION DETECTED'));
+    assert.ok(reg, `expected regression reason for ${JSON.stringify(over)}`);
+    assert.ok(reg.includes('Recorded baseline:'));
+    assert.ok(reg.includes('Observed upstream:'));
+    assert.ok(reg.includes('No automatic downgrade will be proposed.'));
+  }
+});
+
+test('drift: upstream strictly above baseline (same major) is still low-risk', () => {
+  const d = classifyDrift(recorded, upstreamOf({ remotion: '4.1.0', skillsVersion: '4.0.520' }));
+  assert.equal(d.level, 'low');
+});
+
 test('drift: malformed upstream response is unknown, never a false claim', () => {
   for (const bad of [null, {}, { remotion: 'x', skillsVersion: '4.0.519', skillNames: [] }, { remotion: '4.0.519', skillsVersion: null, skillNames: ['a'] }]) {
     assert.equal(classifyDrift(recorded, bad).level, 'unknown');
@@ -334,60 +355,149 @@ test('writeUpstream rewrites manifest + both READMEs deterministically', () => {
   rmSync(root, { recursive: true, force: true });
 });
 
-// --- canonical ZCode skill-path detection (scripts/skill-paths.mjs) ---
+// --- canonical ZCode skill discovery + installation integrity (skill-paths.mjs) ---
 
-const fakeSkillInstall = (root, location) => {
-  const targets = {
-    project: join(root, 'repo', '.zcode', 'skills', ROUTER_SKILL),
-    zcode: join(root, 'home', '.zcode', 'skills', ROUTER_SKILL),
-    agents: join(root, 'home', '.agents', 'skills', ROUTER_SKILL),
+const EXPECTED = loadExpectedSkillNames(); // from compatibility/remotion.json — no literal counts
+
+// Creates an install in one scope: a subset of expected names + optional extras.
+const makeInstall = (root, where, names, extra = []) => {
+  const bases = {
+    project: join(root, 'repo', '.zcode', 'skills'),
+    zcode: join(root, 'home', '.zcode', 'skills'),
+    agents: join(root, 'home', '.agents', 'skills'),
   };
-  mkdirSync(targets[location], { recursive: true });
-  writeFileSync(join(targets[location], 'SKILL.md'), '---\nname: x\n---\n');
-  return { project: join(root, 'repo'), home: join(root, 'home') };
-};
-
-test('skill detection: only ~/.zcode/skills counts as installed (canonical path)', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-paths-'));
-  const { project, home } = fakeSkillInstall(root, 'zcode');
-  assert.deepEqual(detectSkillInstall({ projectRoot: project, home }), { scope: 'user', dir: join(home, '.zcode', 'skills') });
-  rmSync(root, { recursive: true, force: true });
-});
-
-test('skill detection: only ~/.agents/skills counts as installed', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-paths-'));
-  const { project, home } = fakeSkillInstall(root, 'agents');
-  assert.deepEqual(detectSkillInstall({ projectRoot: project, home }), { scope: 'user', dir: join(home, '.agents', 'skills') });
-  rmSync(root, { recursive: true, force: true });
-});
-
-test('skill detection: project scope wins when present', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-paths-'));
-  const { project, home } = fakeSkillInstall(root, 'project');
-  const d = detectSkillInstall({ projectRoot: project, home });
-  assert.equal(d.scope, 'project');
-  assert.ok(d.dir.endsWith(join('.zcode', 'skills')));
-  rmSync(root, { recursive: true, force: true });
-});
-
-test('skill detection: none installed means bootstrap required', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-paths-'));
-  mkdirSync(join(root, 'home'), { recursive: true });
-  assert.deepEqual(detectSkillInstall({ projectRoot: join(root, 'repo'), home: join(root, 'home') }), { scope: 'none', dir: null });
-  rmSync(root, { recursive: true, force: true });
-});
-
-test('countOfficialSkills counts only remotion-* dirs with SKILL.md', () => {
-  const root = mkdtempSync(join(tmpdir(), 'skill-count-'));
-  const dir = join(root, 'skills');
-  for (const n of ['remotion-a', 'remotion-b', 'other', 'remotion-empty']) {
+  const dir = bases[where];
+  for (const n of [...names, ...extra]) {
     mkdirSync(join(dir, n), { recursive: true });
-    if (n !== 'remotion-empty') writeFileSync(join(dir, n, 'SKILL.md'), 'x');
+    writeFileSync(join(dir, n, 'SKILL.md'), '---\nname: x\n---\n');
   }
-  writeFileSync(join(dir, 'README.md'), 'x');
-  assert.equal(countOfficialSkills(dir), 2);
-  assert.equal(countOfficialSkills(join(root, 'missing')), 0);
+  return { project: join(root, 'repo'), home: join(root, 'home'), dir };
+};
+const allBut = (n) => EXPECTED.filter((x) => x !== n);
+
+test('integrity: sentinel-only install is detected as INCOMPLETE, not installed', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const fx = makeInstall(root, 'zcode', [ROUTER_SKILL]);
+  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
+  assert.equal(r.scope, 'user');
+  assert.equal(r.complete, false);
+  assert.equal(r.found, 1);
+  assert.equal(r.expected, EXPECTED.length);
+  assert.ok(r.missing.includes('remotion-render') && r.missing.includes('remotion-captions'));
   rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: complete install — no reinstall', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const fx = makeInstall(root, 'agents', EXPECTED);
+  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
+  assert.deepEqual({ scope: r.scope, complete: r.complete, found: r.found, missing: r.missing, extra: r.extra },
+    { scope: 'user', complete: true, found: EXPECTED.length, missing: [], extra: [] });
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: one expected skill missing is incomplete', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const fx = makeInstall(root, 'zcode', allBut('remotion-render'));
+  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
+  assert.equal(r.complete, false);
+  assert.deepEqual(r.missing, ['remotion-render']);
+  assert.equal(r.found, EXPECTED.length - 1);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: multiple expected skills missing', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const missing = ['remotion-render', 'remotion-captions', 'remotion-maps'];
+  const fx = makeInstall(root, 'zcode', EXPECTED.filter((n) => !missing.includes(n)));
+  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
+  assert.equal(r.complete, false);
+  assert.equal(r.missing.length, 3);
+  assert.deepEqual([...r.missing].sort(), [...missing].sort());
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: extra unknown remotion-* skill is complete-but-reported', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const fx = makeInstall(root, 'zcode', EXPECTED, ['remotion-legacy-thing']);
+  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
+  assert.equal(r.complete, true); // extras are not a failure
+  assert.deepEqual(r.extra, ['remotion-legacy-thing']); // …but surfaced (topology may have changed)
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: project complete + user incomplete → project wins, complete', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const proj = makeInstall(root, 'project', EXPECTED);
+  makeInstall(root, 'zcode', [ROUTER_SKILL]);
+  const r = inspectSkillInstall({ home: proj.home, projectRoot: proj.project, expectedSkillNames: EXPECTED });
+  assert.equal(r.scope, 'project');
+  assert.equal(r.complete, true);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: project incomplete + user complete → project wins, INCOMPLETE (scopes never mix)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const proj = makeInstall(root, 'project', allBut('remotion-render'));
+  makeInstall(root, 'zcode', EXPECTED);
+  const r = inspectSkillInstall({ home: proj.home, projectRoot: proj.project, expectedSkillNames: EXPECTED });
+  assert.equal(r.scope, 'project'); // first scope with the router skill is THE installation
+  assert.equal(r.complete, false);
+  assert.deepEqual(r.missing, ['remotion-render']);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: ~/.zcode/skills outranks ~/.agents/skills', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  const fx = makeInstall(root, 'zcode', EXPECTED);
+  makeInstall(root, 'agents', [ROUTER_SKILL]);
+  const r = inspectSkillInstall({ home: fx.home, projectRoot: fx.project, expectedSkillNames: EXPECTED });
+  assert.equal(r.scope, 'user');
+  assert.ok(r.dir.includes(join('.zcode', 'skills')));
+  assert.equal(r.complete, true);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('integrity: no valid install anywhere → scope none, bootstrap required', () => {
+  const root = mkdtempSync(join(tmpdir(), 'skill-int-'));
+  mkdirSync(join(root, 'home'), { recursive: true });
+  const r = inspectSkillInstall({ home: join(root, 'home'), projectRoot: join(root, 'repo'), expectedSkillNames: EXPECTED });
+  assert.deepEqual({ scope: r.scope, dir: r.dir, found: r.found, complete: r.complete },
+    { scope: 'none', dir: null, found: 0, complete: false });
+  rmSync(root, { recursive: true, force: true });
+});
+
+// --- SemVer comparison (compareSemver / versionStatus) ---
+
+test('compareSemver: numeric, not lexicographic', () => {
+  assert.equal(compareSemver('4.0.518', '4.0.519'), -1);
+  assert.equal(compareSemver('4.0.519', '4.0.519'), 0);
+  assert.equal(compareSemver('4.0.520', '4.0.519'), 1);
+  assert.equal(compareSemver('0.9.0', '0.10.0'), -1);   // lexicographic would say >
+  assert.equal(compareSemver('1.9.9', '1.10.0'), -1);   // lexicographic would say >
+  assert.equal(compareSemver('0.2.2', '0.2.1'), 1);
+});
+
+test('compareSemver: prerelease and build metadata per SemVer 2.0.0', () => {
+  assert.equal(compareSemver('1.0.0-alpha', '1.0.0'), -1);        // prerelease < release
+  assert.equal(compareSemver('1.0.0-alpha', '1.0.0-beta'), -1);
+  assert.equal(compareSemver('1.0.0-alpha.2', '1.0.0-alpha.10'), -1); // numeric identifiers
+  assert.equal(compareSemver('1.0.0+build.1', '1.0.0+build.99'), 0);  // build ignored
+  assert.equal(compareSemver('1.0.0-rc.1', '1.0.0'), -1);
+});
+
+test('compareSemver: invalid input → null (callers map to unknown)', () => {
+  for (const bad of ['latest', '4.0', '', null, undefined, 'v1.2.3']) {
+    assert.equal(compareSemver(bad, '1.0.0'), null);
+    assert.equal(compareSemver('1.0.0', bad), null);
+  }
+});
+
+test('versionStatus: outdated / current / AHEAD (newer than upstream is not a failure)', () => {
+  assert.equal(versionStatus('4.0.518', '4.0.519'), 'outdated');
+  assert.equal(versionStatus('4.0.519', '4.0.519'), 'current');
+  assert.equal(versionStatus('4.0.520', '4.0.519'), 'ahead'); // dist-tag lag, NOT outdated
+  assert.equal(versionStatus('0.9.0', '0.10.0'), 'outdated'); // no lexicographic bug
 });
 
 // --- doctor version logic: each artifact vs its OWN source ---
@@ -443,6 +553,16 @@ test('update command regression: hard-coded skill list is flagged', async () => 
   const { errors } = await verifyPlugin(root, { offline: true });
   rmSync(root, { recursive: true, force: true });
   assert.ok(errors.some((e) => e.includes('remotion-update.md') && e.includes('hard-coded')));
+});
+
+test('update command regression: Bash-only $() substitution is flagged (Windows safety)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'verify-plugin-'));
+  makePlugin(root);
+  writeFileSync(join(root, 'commands', 'remotion-update.md'),
+    '---\ndescription: u\n---\nRead compatibility/remotion.json. Recovery: npx --package=@remotion/cli@$(npm view remotion version) -- remotion upgrade\n');
+  const { errors } = await verifyPlugin(root, { offline: true });
+  rmSync(root, { recursive: true, force: true });
+  assert.ok(errors.some((e) => e.includes('remotion-update.md') && e.includes('cross-platform')));
 });
 
 test('marketplace entry: strict must be boolean, true is accepted', async () => {

@@ -79,3 +79,23 @@ jobs:
       - uses: actions/setup-node@v7
         with: { node-version: 24 }
       - run: node scripts/compat-smoke.mjs
+
+  # Single stable check for branch protection. A conditional job (compat-smoke)
+  # must not be a required status check directly — it is legitimately "skipped"
+  # on docs-only PRs. This aggregator succeeds exactly when every real check
+  # succeeded and the heavy smoke either passed or was intentionally skipped.
+  required-ci:
+    needs: [verify, online-verify, changes, compat-smoke]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "verify:        ${{ needs.verify.result }}"
+          echo "online-verify: ${{ needs.online-verify.result }}"
+          echo "changes:       ${{ needs.changes.result }}"
+          echo "compat-smoke:  ${{ needs.compat-smoke.result }}"
+          test "${{ needs.verify.result }}" = "success"
+          test "${{ needs.online-verify.result }}" = "success"
+          test "${{ needs.changes.result }}" = "success"
+          test "${{ needs.compat-smoke.result }}" = "success" || test "${{ needs.compat-smoke.result }}" = "skipped"
+          echo "required-ci: PASS"
