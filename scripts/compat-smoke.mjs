@@ -18,6 +18,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { resolveOfficialMediabunnyVersion, checkPairing } from './compatibility.mjs';
 
 const run = promisify(exec);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -84,6 +85,18 @@ const SRC = {
 };
 
 process.on('exit', () => { if (!keep) cleanup(); });
+
+// 0. preflight: the recorded pairing must equal the OFFICIAL pairing that
+// Remotion REMOTION_V declares (independently resolved from Remotion's
+// published metadata). This catches a stale recorded pairing BEFORE any
+// install/render — proving self-consistency is not proving compatibility.
+let officialPair = null;
+await step('official Mediabunny pairing check', async ({ timeout }) => {
+  officialPair = await resolveOfficialMediabunnyVersion(REMOTION_V);
+  const r = checkPairing(REMOTION_V, MEDIABUNNY_V, officialPair);
+  if (!r.ok) throw new Error(r.error);
+  return `Remotion ${REMOTION_V} officially pairs with mediabunny ${r.official} — matches the manifest`;
+}, { timeout: 120_000 });
 
 // 1. fresh project at the recorded baseline version (+ recorded Mediabunny pair)
 project = mkdtempSync(join(tmpdir(), 'compat-smoke-'));
@@ -178,6 +191,7 @@ if (withMp4) {
 console.log('smoke: PASS');
 console.log(`Remotion: ${REMOTION_V}`);
 console.log(`official skills: ${SKILL_NAMES.length} (v${SKILLS_V})`);
+console.log(`official Mediabunny pairing: ${officialPair}`);
 console.log(`still: PASS (${still})`);
 console.log(mp4Summary);
 await cleanupWithRetry();

@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.2.5 — 2026-09-01
+
+Compatibility-state hotfix — no new product surface.
+
+- **Mediabunny is first-class upstream compatibility state**: the daily
+  observation resolves the OFFICIAL Mediabunny pairing from the observed
+  Remotion version's own published metadata (`@remotion/media`'s declared
+  dependency) — never "latest mediabunny", never assumed.
+- **Remotion 4.0.520 baseline corrected to the official Mediabunny 1.55.5
+  pairing.** PR #9 had moved the recorded Remotion/skills baseline to 4.0.520
+  but preserved Mediabunny 1.55.4, and the smoke proved only that the OLD pair
+  could render — not that it was the official pairing.
+- **compat-smoke independently verifies the recorded pairing before
+  rendering**: it resolves the official pairing for the recorded Remotion
+  version and fails before install/render if the manifest disagrees, is
+  unresolvable, or is missing (fail closed).
+- **Upstream drift includes Mediabunny pairing changes**: pairing movement is
+  low-risk drift requiring real validation; an observed pairing below the
+  recorded one is a high-risk regression; an unresolvable official pairing
+  makes the state unknown rather than silently reusing the old value.
+- **Validation failures and delivery failures are reported separately**: the
+  nightly workflow now labels candidate-write/static/smoke steps as validation
+  and PR creation as delivery. A delivery failure (as in issue #8, where PR
+  creation lacked permissions after validation PASSED) opens
+  "Compatibility PR delivery FAILED", never a false "validation FAILED".
+- **Baseline changes are shipped plugin state**: merging a compatibility
+  baseline PR now requires a plugin patch release so existing ZCode installs
+  receive the new baseline; automated baseline PRs state this in their body.
+- Verified Remotion 4.0.520 release notes (Mediabunny upgrade to 1.55.5 in
+  `@remotion/media`); no zcode-remotion orchestration changes required.
+- Remotion 4.0.520 continues expanding its own Agent/Studio tooling (e.g.
+  WebMCP tooling in Studio); zcode-remotion's boundary (Remotion official
+  assets → ZCode reliability/orchestration) is unchanged and future upstream
+  plugin compatibility will be evaluated separately.
+
 ## 0.2.4 — 2026-09-01
 
 Evidence correction — public claims now match executed validation. No new

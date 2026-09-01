@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFrontmatter, verifyPlugin, extractUrls } from './verify-plugin.mjs';
-import { validateManifest, classifyDrift, checkRouterCoverage, versionStatus, compareSemver } from './compatibility.mjs';
+import { validateManifest, classifyDrift, checkRouterCoverage, versionStatus, compareSemver, checkPairing, resolveOfficialMediabunnyVersion } from './compatibility.mjs';
 import { writeUpstream, githubApiHeaders } from './drift-check.mjs';
 import { inspectSkillInstall, loadExpectedSkillNames, ROUTER_SKILL } from './skill-paths.mjs';
 
@@ -258,10 +258,11 @@ test('marketplace entry with invalid tags shape is flagged', async () => {
 const recorded = {
   remotion: { tested: '4.0.519' },
   skills: { tested: '4.0.519', count: 2, names: ['remotion-create', 'remotion-render'] },
+  mediabunny: { tested: '1.55.4' },
 };
 const upstreamOf = (over = {}) => ({
   remotion: '4.0.519', skillsVersion: '4.0.519',
-  skillNames: ['remotion-create', 'remotion-render'], ...over,
+  skillNames: ['remotion-create', 'remotion-render'], mediabunnyVersion: '1.55.4', ...over,
 });
 
 test('drift: none when upstream matches the baseline', () => {
@@ -321,6 +322,77 @@ test('drift: upstream strictly above baseline (same major) is still low-risk', (
   assert.equal(d.level, 'low');
 });
 
+test('drift: Mediabunny unchanged adds no drift', () => {
+  assert.equal(classifyDrift(recorded, upstreamOf()).level, 'none');
+});
+
+test('drift: official Mediabunny pairing movement alone is low-risk (never none)', () => {
+  const d = classifyDrift(recorded, upstreamOf({ mediabunnyVersion: '1.55.5' }));
+  assert.equal(d.level, 'low');
+  assert.ok(d.reasons.some((r) => r.includes('Mediabunny pairing 1.55.4 → 1.55.5')));
+});
+
+test('drift: Remotion/skills/Mediabunny moving up together → low with pairing reason', () => {
+  const d = classifyDrift(recorded, upstreamOf({
+    remotion: '4.0.520', skillsVersion: '4.0.520', mediabunnyVersion: '1.55.5',
+  }));
+  assert.equal(d.level, 'low');
+  assert.ok(d.reasons.some((r) => r.includes('Mediabunny pairing 1.55.4 → 1.55.5')));
+  assert.ok(d.reasons.some((r) => r.includes('Remotion 4.0.519 → 4.0.520')));
+});
+
+test('drift: missing official Mediabunny observation → unknown (fail closed)', () => {
+  const d = classifyDrift(recorded, { remotion: '4.0.520', skillsVersion: '4.0.520', skillNames: recorded.skills.names });
+  assert.equal(d.level, 'unknown');
+  assert.ok(d.reasons.some((r) => r.includes('Mediabunny pairing')));
+});
+
+test('drift: recorded Mediabunny above observed official pairing → high-risk regression', () => {
+  const d = classifyDrift(recorded, upstreamOf({ mediabunnyVersion: '1.55.3' }));
+  assert.equal(d.level, 'high');
+  assert.ok(d.reasons.some((r) => r.includes('UPSTREAM VERSION REGRESSION DETECTED (Mediabunny official pairing)')));
+});
+
+test('drift: baseline without a recorded Mediabunny pairing → low, forced re-validation', () => {
+  const recordedNoMb = { remotion: recorded.remotion, skills: recorded.skills };
+  const d = classifyDrift(recordedNoMb, upstreamOf());
+  assert.equal(d.level, 'low');
+  assert.ok(d.reasons.some((r) => r.includes('Mediabunny pairing not recorded')));
+});
+
+test('checkPairing: recorded pairing must equal the independently resolved official pairing', () => {
+  const stale = checkPairing('4.0.520', '1.55.4', '1.55.5');
+  assert.equal(stale.ok, false);
+  assert.ok(stale.error.includes('compatibility baseline pairing mismatch'));
+  assert.ok(stale.error.includes('officially pairs with Mediabunny 1.55.5'));
+  assert.ok(stale.error.includes('records 1.55.4'));
+  assert.deepEqual(checkPairing('4.0.520', '1.55.5', '1.55.5'), { ok: true, official: '1.55.5' });
+  assert.equal(checkPairing('4.0.520', '1.55.4', null).ok, false); // unresolvable → fail closed
+  assert.equal(checkPairing('4.0.520', null, '1.55.5').ok, false); // nothing recorded → fail closed
+});
+
+test('resolveOfficialMediabunnyVersion: invalid Remotion version → null without lookup', async () => {
+  for (const bad of [null, 'latest', '4.0', '']) {
+    assert.equal(await resolveOfficialMediabunnyVersion(bad), null);
+  }
+});
+
+test('workflow policy: validation vs delivery failure paths are distinct and correctly gated', () => {
+  const yml = readFileSync(join(SCRIPTS_DIR, '..', '.github', 'workflows', 'drift-check.yml'), 'utf8');
+  // stable stage IDs exist
+  for (const id of ['candidate_write', 'static_validation', 'compat_validation', 'pr_delivery']) {
+    assert.ok(yml.includes(`id: ${id}`), `missing id: ${id}`);
+  }
+  // validation-failure path is gated on VALIDATION step outcomes, not bare failure()
+  assert.ok(yml.includes("steps.static_validation.outcome == 'failure' || steps.compat_validation.outcome == 'failure'"));
+  // a distinct delivery-failure path exists, requiring validation SUCCESS
+  assert.ok(yml.includes('Compatibility PR delivery FAILED'));
+  assert.ok(yml.includes("steps.compat_validation.outcome == 'success'"));
+  // the PR body carries machine evidence + the patch-release reminder
+  assert.ok(yml.includes('official pairing lookup PASS'));
+  assert.ok(yml.includes('publish a plugin patch release'));
+});
+
 test('drift: malformed upstream response is unknown, never a false claim', () => {
   for (const bad of [null, {}, { remotion: 'x', skillsVersion: '4.0.519', skillNames: [] }, { remotion: '4.0.519', skillsVersion: null, skillNames: ['a'] }]) {
     assert.equal(classifyDrift(recorded, bad).level, 'unknown');
@@ -342,13 +414,14 @@ test('writeUpstream rewrites manifest + both READMEs deterministically', () => {
   writeFileSync(manifestPath, JSON.stringify(recorded));
   writeFileSync(readmeEn, 'Tested against: Remotion `4.0.519` · official skills `4.0.519`\n');
   writeFileSync(readmeZh, '测试基线：Remotion `4.0.519` · 官方技能 `4.0.519`\n');
-  const next = writeUpstream(recorded, upstreamOf({ remotion: '4.0.520', skillsVersion: '4.0.520' }), '2026-09-01', {
+  const next = writeUpstream(recorded, upstreamOf({ remotion: '4.0.520', skillsVersion: '4.0.520', mediabunnyVersion: '1.55.5' }), '2026-09-01', {
     manifestPath, readmePaths: [readmeEn, readmeZh],
   });
   assert.equal(next.remotion.tested, '4.0.520');
   const written = JSON.parse(readFileSync(manifestPath, 'utf8'));
   assert.equal(written.skills.count, 2);
   assert.deepEqual(written.skills.names, ['remotion-create', 'remotion-render']);
+  assert.equal(written.mediabunny.tested, '1.55.5');
   assert.equal(written.verifiedAt, '2026-09-01');
   assert.ok(readFileSync(readmeEn, 'utf8').includes('Remotion `4.0.520` · official skills `4.0.520`'));
   assert.ok(readFileSync(readmeZh, 'utf8').includes('Remotion `4.0.520` · 官方技能 `4.0.520`'));

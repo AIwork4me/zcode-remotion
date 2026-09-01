@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml/badge.svg)](https://github.com/AIwork4me/zcode-remotion/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.4-8b5cf6.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.5-8b5cf6.svg)](CHANGELOG.md)
 [![ZCode Plugin](https://img.shields.io/badge/ZCode-Plugin-22d3ee.svg)](https://zcode.z.ai/cn/docs/plugin)
 
 **一句话，从想法到 MP4。**
@@ -53,7 +53,7 @@ Remotion 自带的官方 Agent Skills 非常优秀——本插件**不替代**�
 | 渲染产物校验 | — | 有 |
 | `/remotion-doctor` | — | 有 |
 | 上游兼容性监控 | — | 有（每日，含已验证的自动 PR） |
-| ZCode 真机端到端证据 | — | 有（[报告](docs/verification-report.md)） |
+| ZCode 真机端到端证据 | — | 当前版本稳态真机 E2E + 干净状态 CI 兼容性证据（[报告](docs/verification-report.md)） |
 
 ## 安装
 

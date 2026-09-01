@@ -4,7 +4,7 @@ description: "Remotion video workflow for ZCode: scaffold projects, write React 
 license: MIT
 metadata:
   author: ZCode Remotion Plugin Contributors
-  version: "0.2.4"
+  version: "0.2.5"
 ---
 
 # Remotion Workflow — ZCode Integration Layer
