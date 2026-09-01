@@ -117,7 +117,7 @@ Remotion 自带的官方 Agent Skills 非常优秀——本插件**不替代**�
 - Remotion 官方技能：Copyright Remotion，Remotion License——个人及 ≤3 人公司免费；
   更大规模公司需购买许可（[remotion.pro](https://www.remotion.pro)）
 
-测试基线：Remotion `4.0.519` · 官方技能 `4.0.519` —— 基线记录于
+测试基线：Remotion `4.0.520` · 官方技能 `4.0.520` —— 基线记录于
 [compatibility/remotion.json](compatibility/remotion.json)，核验证据见
 [docs/verification-report.md](docs/verification-report.md)。
 
