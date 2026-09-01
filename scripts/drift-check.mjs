@@ -79,9 +79,10 @@ export async function observeUpstream() {
 }
 
 // Rewrites the manifest and the README tested-against lines to the observed
-// upstream state. Mediabunny pairing is preserved (its value comes from the
-// official docs page and is re-verified by a human in the compat PR).
-export function writeUpstream(manifest, upstream, today, { manifestPath = MANIFEST_PATH, readmePaths = README_PATHS } = {}) {
+// upstream state: candidate Remotion, candidate skills, AND the candidate
+// official Mediabunny pairing resolved from the candidate Remotion version.
+// The result is a CANDIDATE baseline — the real smoke must still pass before
+// it can be considered verified.
   const next = {
     ...manifest,
     remotion: { ...manifest.remotion, tested: upstream.remotion },
