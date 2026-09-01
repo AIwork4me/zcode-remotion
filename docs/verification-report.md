@@ -1,5 +1,94 @@
 # Verification Report — remotion ZCode plugin
 
+## 0.2.3 consistency run — 2026-09-01 — PASS
+
+OS: Windows 10 (10.0.26200) · Node v24.14.1. All evidence below was executed
+and observed in this session.
+
+### Upstream (re-detected)
+
+Remotion **4.0.519** (`npm view remotion version`) · official skills **4.0.519** ·
+**12 skills** · Mediabunny **1.55.4** · `drift: none` (three transient
+`unknown` observations during local runs while github.com:443 was intermittently
+unreachable from this machine; each re-run succeeded — the graceful-degradation
+path under real conditions, no false claims made).
+
+### Skill discovery (missing-router + scope semantics)
+
+All unit-tested with counts derived from `compatibility/remotion.json`
+(67/67 tests). Highlights:
+
+- **missing router** (all expected skills except `remotion-best-practices`) →
+  scope detected, **INCOMPLETE**, router listed in Missing — no longer "absent".
+- **router only** → **INCOMPLETE** (11 missing) — never "installed".
+- **one non-router skill only** → incomplete installation detected.
+- **complete** / **extra unknown** → complete with extra surfaced.
+- **auto prefers partial project over complete global** (repair-in-place).
+- **`--global` ignores a complete project install**; **`--project` ignores a
+  complete global install**; global prefers a complete user path
+  (`~/.zcode` or `~/.agents`), never unioned.
+- **CLI (real runs)**: `--global` → `12/12 present / status: COMPLETE` exit 0
+  on this machine; `--project <empty>` → "not installed" exit 2; conflicting
+  flags and unknown flags → exit 64.
+
+### Product workflow — autonomous Agent visual QA
+
+Policy implemented in `skills/remotion/SKILL.md` §4 and `/remotion-setup`:
+still render → **agent** visual inspection (objective checklist) → automatic
+full render on PASS → human only for explicit/subjective/low-confidence cases.
+Output verification prefers `ffprobe` and states exactly what was verified.
+
+Real autonomous execution observed today (no human input at any point):
+the required CI `compat-smoke` runs performed the full loop — project
+scaffold → official-skills bootstrap → `npx remotion versions` → still render
+(41,674 bytes) → MP4 render — end-to-end without intervention (the PR #4 and
+post-merge main `compat-smoke` runs; see the CI section below for run links). The agent-side *visual inspection* step of the loop is
+policy + verifier-guarded; a fresh human-free one-prompt journey audit of the
+kind in the 0.1.0 layer-3 evidence was not re-run in this patch — the demo
+evidence (one prompt, no manual edits) remains the recorded journey proof.
+
+### CI — real pull_request evidence
+
+- **PR #4** `fix: align skill scope detection and autonomous visual QA` →
+  `main`, workflow run
+  [33478165576](https://github.com/AIwork4me/zcode-remotion/actions/runs/33478165576),
+  event **pull_request**: `changes` (code=true) · verify ×8 · online-verify ·
+  `compat-smoke` PASS (47 s, real render) · **`required-ci` PASS** ·
+  mergeState CLEAN under the strict up-to-date policy.
+- Squash-merged; post-merge main CI green — **12/12 check runs successful**
+  on `73afc59`.
+- **PR #1** (Dependabot, `actions/github-script` v7 → v9): breaking changes
+  reviewed against our scripts (no `require('@actions/github')`, no
+  `getOctokit` redeclaration); branch updated, full gate green
+  (run 33475843164), merged. Post-merge: `drift-check` none, online verifier
+  PASS, and the `upstream-compatibility` workflow executed green under v9 via
+  workflow_dispatch (run 33476078933). The v9 issue-creation scripts (high-risk
+  and validation-failed paths) did not execute — no real drift event occurred;
+  static review only, honestly noted.
+
+### Ruleset — fetched after mutation
+
+`main-protection` (id 21978924): enforcement **active**, rules = deletion +
+pull_request + required_status_checks, **strict_required_status_checks_policy:
+true** (branches must be up to date), required check = **required-ci**,
+bypass reserved for RepositoryAdmin. PRs #1 and #4 both merged through this
+policy post-change (PR #4 mergeState CLEAN proves the strict gate resolves).
+
+### Local validation
+
+- `node --test scripts/verify-plugin.test.mjs` → **67/67 PASS**
+- offline verifier PASS · online verifier PASS · release-check
+  (0.2.3 == CHANGELOG) PASS
+- `compat-smoke`: install + Mediabunny pairing + skills bootstrap + versions
+  all PASS locally; the local still/MP4 render steps were blocked by the
+  intermittent github.com / storage.googleapis.com outage on this machine —
+  the render evidence for this release is the green CI compat-smoke above.
+- New verifier rule: shipped content must not contain human-approval-gate
+  phrasing ("still frame for approval", "先渲染静帧给你确认", …) — the
+  one-promise consistency is statically enforced.
+
+---
+
 ## 0.2.2 reliability run — 2026-09-01 — PASS
 
 OS: Windows 10 (10.0.26200) · Node v24.14.1. Every claim below was executed and
