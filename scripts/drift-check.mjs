@@ -132,6 +132,10 @@ if (write) {
     console.error('--write refused: upstream state unreadable');
     process.exit(1);
   }
+  if (drift.level === 'high') {
+    console.error('--write refused: high-risk upstream drift requires maintainer review');
+    process.exit(1);
+  }
   if (drift.level === 'none') {
     console.error('--write skipped: manifest already matches upstream');
   } else if (drift.added.length || drift.removed.length) {
