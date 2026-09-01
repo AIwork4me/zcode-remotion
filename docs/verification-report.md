@@ -1,6 +1,93 @@
 # Verification Report — remotion ZCode plugin
 
-## Evidence correction — v0.2.4 audit
+## 0.2.4 evidence-correction run — 2026-09-01 — PASS
+
+OS: Windows 10 (10.0.26200) · Node v24.14.1. This run corrected overstated
+public claims and strengthened the required gate so the promise is provable.
+
+### Historical correction (v0.2.3)
+
+See "Evidence correction — v0.2.4 audit" below. Summary: v0.2.3's required CI
+(PR #4 run 33478165576; main run 33478325902) proved a real **still render
+only**; the MP4 and skill-refresh claims in that report and in the published
+v0.2.3 release were corrected in this patch (release body edited in place —
+tag, date and commit untouched; verification-report correction note added
+above the preserved 0.2.3 section; CHANGELOG bullets carry inline correction
+markers). Nothing historical was silently rewritten.
+
+### Current ZCode docs (refresh)
+
+Checked 2026-09-01: the official ZCode **Skill** docs
+(https://zcode.z.ai/docs/skill) instruct, after creating/importing/modifying a
+skill: go to **Settings → Skills**, click **Refresh**, confirm the skill is
+listed under its source and its toggle stays enabled; externally added skill
+files are not auto-picked-up. The Plugin docs confirm plugin components
+register automatically on enable. Repository guidance updated to match
+(`/remotion-setup` step 6, SKILL.md §1, both READMEs); fallback = new
+conversation; plugin toggle is explicitly NOT a refresh mechanism for
+external skills.
+
+### Required PR compatibility gate (now MP4)
+
+- **PR #6** `fix: make compatibility evidence match the product promise` →
+  `main`, run 33494976406, event **pull_request**, `changes` code=true:
+  verify ×8 · online-verify · `changes` · **`compat-smoke` PASS with**
+  `node scripts/compat-smoke.mjs --mp4` (job 99814984539):
+  - fresh project remotion@4.0.519 + mediabunny@1.55.4 → npm ls pair-consistent
+  - 12/12 official skills bootstrapped @4.0.519 (frontmatter verified)
+  - `npx remotion versions` → "All packages have the correct version"
+  - **still: PASS (out/frame.png 41,674 bytes)**
+  - **MP4: PASS (out/smoke.mp4 48,334 bytes; ffprobe unavailable on the
+    runner — verified: render exit status, existence, size)**
+  - required-ci PASS
+- **Main gate** (independent path): run 33495168131 on `d0a392f`, job
+  99815601287: **still PASS (41,674 B) · MP4 PASS (48,334 B)** · 12/12 checks
+  successful.
+
+### Real current-version ZCode E2E — PASS
+
+A fresh agent session (real ZCode agent runtime, no conversation history,
+working in an empty directory) received exactly ONE natural-language prompt:
+
+> 帮我做一个 10 秒的产品宣传视频，主题是 ZCode Remotion Plugin。请在
+> C:\Users\Tinkerclaw\Desktop\zr-e2e-journey 目录里工作。
+
+Starting state (honest): the zcode-remotion plugin was installed/enabled and
+official skills present (steady state — not a from-zero install journey).
+
+- initial prompts: **1** · follow-up human inputs: **0**
+- journey: scaffold (`npm create video`, blank template) → transitions
+  dependency → TypeScript typecheck → **4 representative stills rendered and
+  visually inspected by the agent** (scene-by-scene, before any full render)
+  → full render → output verification; 48 tool calls, ≈23 min
+- artifacts (independently verified on disk): `out/ZCodePromo.mp4`
+  **2,883,522 bytes** (agent render log: 300/300 frames @ 30 fps = 10.0 s,
+  1920×1080; ffprobe not installed locally — verified: existence, size,
+  render log) + still-1…4.png (296–329 KB each)
+- independent re-inspection: still-1 (opening title, gradient "Remotion",
+  Chinese subtitle) and still-3 (three feature cards) — no clipping, overlap,
+  contrast or layout issues
+- deliverable reported with absolute path; the agent offered optional
+  follow-ups only AFTER the finished MP4 was delivered
+
+### Unit/static
+
+- `node --test scripts/verify-plugin.test.mjs` → **72/72 PASS** (new:
+  stale-approval phrasing fails / opt-in approval passes ×6 phrases, CI-gate
+  `--mp4` text check, `--home`-without-value exit 64, project-mode fail-fast)
+- offline verifier PASS · online verifier PASS · release-check
+  (0.2.4 == CHANGELOG == GitHub latest after release) PASS
+- `drift: none`; upstream-compatibility workflow dispatched manually
+  (run 33495361683) — success under github-script v9. The low-drift
+  `--mp4` smoke path in that workflow did NOT execute (no real low-risk
+  drift happened); static inspection only, honestly noted.
+- Local `compat-smoke --mp4`: install/pairing/bootstrap/versions PASS; local
+  render steps remained blocked by this machine's intermittent
+  github.com / storage.googleapis.com outage — the MP4 render evidence for
+  v0.2.4 is the green required-CI gate (PR #6 + main), which is the gate
+  that matters.
+
+### Evidence correction governing the 0.2.3 section below
 
 The 0.2.3 report below overstated two things. Factual corrections, auditable
 from the actual workflow logs; the historical sections are preserved as
