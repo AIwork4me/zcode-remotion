@@ -1,9 +1,9 @@
 {
   "remotion": {
-    "tested": "4.0.520"
+    "tested": "4.0.525"
   },
   "skills": {
-    "tested": "4.0.520",
+    "tested": "4.0.525",
     "count": 12,
     "names": [
       "remotion-best-practices",
@@ -21,9 +21,9 @@
     ]
   },
   "mediabunny": {
-    "tested": "1.55.5",
+    "tested": "1.56.1",
     "source": "https://www.remotion.dev/docs/mediabunny/version"
   },
-  "verifiedAt": "2026-09-01",
+  "verifiedAt": "2026-09-16",
   "source": "https://github.com/remotion-dev/skills"
 }
